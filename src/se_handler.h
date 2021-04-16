@@ -419,8 +419,18 @@ void consumer_se_task(const ktrim_param &kp,rabbit::fq::FastqDataPool * fastqPoo
 }
 
 
-void writer_se_task(std::atomic_bool *consumer_task_finished, FILE *fout1,
+void writer_se_task(std::atomic_bool *consumer_task_finished, const ktrim_param& kp,
 					WriteBufferDataPool* bufferPool, WriteBufferQueue& bufferQueue){
+	
+	FILE *fout1;
+	string fileName = kp.outpre;
+	fileName += ".read1.fq";
+	fout1 = fopen( fileName.c_str(), "wt" );
+	if( fout1==NULL ) {
+		fprintf( stderr, "\033[1;31mError: write file failed!\033[0m\n" );
+		fclose( fout1 );
+		return;
+	}
 	
 	writeBufferTotal * cur_buffer = buffer_head;
 	int cur_pos = 0;
@@ -522,16 +532,6 @@ int process_SE_C( const ktrim_param &kp ) {
 		kstat.tail_adapter[i] = 0;
 	}
 
-	FILE *fout1;
-	string fileName = kp.outpre;
-	fileName += ".read1.fq";
-	fout1 = fopen( fileName.c_str(), "wt" );
-	if( fout1==NULL ) {
-		fprintf( stderr, "\033[1;31mError: write file failed!\033[0m\n" );
-		fclose( fout1 );
-		return 103;
-	}
-
 	// write buffer producer
 	WriteBufferDataPool* bufferPool = new WriteBufferDataPool(2,MEM_PER_CHUNK);
 	WriteBufferQueue bufferQueue(2,1);
@@ -557,19 +557,19 @@ int process_SE_C( const ktrim_param &kp ) {
 
 	// writer
 	std::thread* writer = NULL;
-	writer = new std::thread(std::bind(&writer_se_task,&consumer_task_finished,fout1, bufferPool, std::ref(bufferQueue)));
+	writer = new std::thread(std::bind(&writer_se_task,&consumer_task_finished,kp, bufferPool, std::ref(bufferQueue)));
 	
 	// thread join
+	write_buffer_producer.join();
 	producer.join();
 	for (int t = 0; t < consumer_num; t++){
 		threads[t]->join();
 	}
-	write_buffer_producer.join();
 	writer->join();
 
 	
 	// write trim.log
-	fileName = kp.outpre;
+	string fileName = kp.outpre;
 	fileName += ".trim.log";
 	ofstream fout( fileName.c_str() );
 	if( fout.fail() ) { 

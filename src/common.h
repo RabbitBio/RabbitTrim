@@ -137,6 +137,7 @@ typedef struct writeBufferTotal{
 		next1 = NULL;
 		next2 = NULL;		
 	}
+	
 	void Reset() {
 		next1 = NULL;
 		next2 = NULL;

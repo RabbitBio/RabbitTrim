@@ -23,6 +23,7 @@
 #include "io/FastxChunk.h"
 #include "io/Reference.h"
 #include "io/Formater.h"
+#include <stdint.h>
 using namespace std;
 
 // format
@@ -83,6 +84,59 @@ int chunkFormat(rabbit::fq::FastqDataChunk *fqDataChunk, CSEREAD *read, bool mHa
   }
 
   return seq_count;
+}
+
+int chunkFormat_PE(rabbit::fq::FastqDataPairChunk* chunk,CPEREAD * read, bool mHasQuality = true){
+	rabbit::fq::FastqDataChunk * left_chunk = chunk->left_part;
+	rabbit::fq::FastqDataChunk * right_chunk = chunk->right_part;
+	uint64_t seq_count = 0;
+	uint64_t pos_1 = 0;
+	neoReference ref1;
+	uint64_t pos_2 = 0;
+	neoReference ref2;
+
+	while(true){
+		ref1.base = left_chunk->data.Pointer();
+		ref2.base = right_chunk->data.Pointer();
+		ref1.pname = pos_1;
+		ref2.pname = pos_2;
+		if (neoGetLine(left_chunk, pos_1, ref1.lname) && neoGetLine(right_chunk, pos_2, ref2.lname)) {
+			ref1.pseq = pos_1;
+			ref2.pseq = pos_2;
+		} else {
+			break;
+		}
+		neoGetLine(left_chunk, pos_1, ref1.lseq);
+		neoGetLine(right_chunk,pos_2, ref2.lseq);
+		ref1.pstrand = pos_1;
+		ref2.pstrand = pos_2;
+		neoGetLine(left_chunk, pos_1, ref1.lstrand);
+		neoGetLine(right_chunk, pos_2, ref2.lstrand);
+		ref1.pqual = pos_1;
+		ref2.pqual = pos_2;
+		neoGetLine(right_chunk, pos_2, ref2.lqual);
+		
+		// print_read(ref);
+		// 构造CPEREAD
+		memcpy(read[seq_count].id1,ref1.base+ref1.pname,ref1.lname);
+		memcpy(read[seq_count].seq1,ref1.base+ref1.pseq,ref1.lseq);
+		memcpy(read[seq_count].qual1,ref1.base+ref1.pqual,ref1.lqual);
+		(read[seq_count].id1)[ref1.lname] = 0;
+		(read[seq_count].seq1)[ref1.lseq] = 0;
+		(read[seq_count].qual1)[ref1.lqual] = 0;
+		read[seq_count].size = ref1.lseq;
+
+		memcpy(read[seq_count].id2,ref2.base+ref2.pname,ref2.lname);
+		memcpy(read[seq_count].seq2,ref2.base+ref2.pseq,ref2.lseq);
+		memcpy(read[seq_count].qual2,ref2.base+ref2.pqual,ref2.lqual);
+		(read[seq_count].id2)[ref2.lname] = 0;
+		(read[seq_count].seq2)[ref2.lseq] = 0;
+		(read[seq_count].qual2)[ref2.lqual] = 0;
+		read[seq_count].size2 = ref2.lseq;
+		seq_count++;
+	}
+	return seq_count;
+
 }
 
 
@@ -194,7 +248,7 @@ unsigned int load_batch_data_PE_C( FILE *fq1, FILE *fq2, CPEREAD *loadingReads, 
 
 	// load read2
 //	start = clock();
-	while( s != p ) {
+	while( s != p ) { // 读取和read1中相同数量的数据
 		fgets( s->id2,   MAX_READ_ID,    fq2 );
 		fgets( s->seq2,  MAX_READ_CYCLE, fq2 );
 		fgets( s->qual2, MAX_READ_ID,    fq2 );	// this line is useless
@@ -333,10 +387,10 @@ bool check_mismatch_dynamic_PE_C( const CPEREAD *read, unsigned int pos, const k
 	if( kp.use_default_mismatch ) {
 		// each read allows 1/8 mismatches of the total comparable length
 		max_mismatch_dynamic = len >> 3;
-		if( (max_mismatch_dynamic<<3) != len )
-			++ max_mismatch_dynamic;
+		// if( (max_mismatch_dynamic<<3) != len )
+		// 	++ max_mismatch_dynamic;
 	} else {
-		max_mismatch_dynamic = ceil( len * kp.mismatch_rate );
+		max_mismatch_dynamic = floor( len * kp.mismatch_rate );
 	}
 
 	// check mismatch for each read
@@ -346,7 +400,6 @@ bool check_mismatch_dynamic_PE_C( const CPEREAD *read, unsigned int pos, const k
 		if( *p != *q ) {
 			if( mis1 == max_mismatch_dynamic )
 				return false;
-
 			++ mis1;
 		}
 	}
@@ -356,7 +409,6 @@ bool check_mismatch_dynamic_PE_C( const CPEREAD *read, unsigned int pos, const k
 		if( *p != *q ) {
 			if( mis2 == max_mismatch_dynamic )
 				return false;
-
 			++ mis2;
 		}
 	}
