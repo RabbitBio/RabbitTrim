@@ -15,11 +15,13 @@
 #include "common.h"
 #include <functional>
 #include <mutex>
-using namespace std;
+#include <atomic>
 
-typedef rabbit::core::TDataQueue<rabbit::fq::FastqDataPairChunk> FqDataPairChunkQueue;
+using namespace std;
 std::mutex buffer_head_mtx;
 std::mutex buffer_size_mtx;
+std::mutex buffer_tail_mtx;
+// writeBufferTotal * buffer_head;
 
 void inline CPEREAD_resize( CPEREAD * read, int n ) {
 	read->size = n;
@@ -77,9 +79,12 @@ void find_seed_pe( vector<unsigned int> &seed, const CPEREAD *read, const ktrim_
 
 // this function is slower than C++ version
 void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, CPEREAD *workingReads,
-					ktrim_stat * kstat, writeBufferTotal * write_buffer_total, const ktrim_param & kp ) {
+					ktrim_stat * kstat, writeBufferTotal * write_buffer_node, int buffer_pos_j, const ktrim_param & kp ) {
 
 	int b1stored  = 0, b2stored = 0;
+	char* buffer1 = write_buffer_node->buffer1[buffer_pos_j];
+	char* buffer2 = write_buffer_node->buffer2[buffer_pos_j];
+	
 
 //	vector<unsigned int> seed;
 //	vector<unsigned int> :: iterator it, end_of_seed;
@@ -88,7 +93,7 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 	register int *it, *end_of_seed;
 
 	register CPEREAD *wkr = workingReads;
-	for( unsigned int iii=end-start; iii; --iii, ++wkr ) {
+	for( unsigned int iii=end; iii; --iii, ++wkr ) {
 		// quality control
 		register int i = get_quality_trim_cycle_pe( wkr, kp ); // i 是进行qulity-trim 的位置
 		if( i == 0 ) { // not long enough
@@ -177,12 +182,11 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 				}
 			}
 		}
-		writebuffer->b1stored[tn] += sprintf( writebuffer->buffer1[tn]+writebuffer->b1stored[tn],
-											"%s%s\n+\n%s\n", wkr->id1, wkr->seq1, wkr->qual1 );
-		writebuffer->b2stored[tn] += sprintf( writebuffer->buffer2[tn]+writebuffer->b2stored[tn],
-											"%s%s\n+\n%s\n", wkr->id2, wkr->seq2, wkr->qual2 );
+		b1stored += sprintf( buffer1+b1stored,"%s%s\n+\n%s\n", wkr->id1, wkr->seq1, wkr->qual1 );
+		b2stored += sprintf( buffer2+b2stored,"%s%s\n+\n%s\n", wkr->id2, wkr->seq2, wkr->qual2 );
 	}
-
+	// 标识buffer_node[buffer_pos_j]已经结束
+	write_buffer_node->buffer1[buffer_pos_j][MEM_PER_CHUNK-1] = 'd';
 	delete [] seed;
 }
 
@@ -200,16 +204,30 @@ int producer_pe_task(const ktrim_param &kp, rabbit::fq::FastqDataPool * fastqPoo
 	int n_chunks = 0;
 	for(unsigned int fileCnt = 0; fileCnt < totalFileCount; fileCnt++){
 		rabbit::fq::FastqFileReader * fqFileReader;
-		// 判断是否是gz文件 假设双端数据的两个输入文件的类型一致
+		// 判断是否是gz文件 如果不一致需要退出终止
 		bool file_is_gz = false;
 		register unsigned int i = R1s[fileCnt].size() - 3;
 		register const char * p = R1s[fileCnt].c_str();
 		if( p[i]=='.' && p[i+1]=='g' && p[i+2]=='z' ) {
 			file_is_gz = true;
-			fqFileReader = new rabbit::fq::FastqFileReader(R1s[fileCnt],*fastqPool,R2s[fileCnt],true);
-		} else {
-			fqFileReader = new rabbit::fq::FastqFileReader(R1s[fileCnt],*fastqPool,R2s[fileCnt],false);
 		}
+
+		i = R2s[fileCnt].size() - 3;
+		p = R2s[fileCnt].c_str();
+		if( p[i]=='.' && p[i+1]=='g' && p[i+2]=='z' ){
+			if(file_is_gz){
+				fqFileReader = new rabbit::fq::FastqFileReader(R1s[fileCnt],*fastqPool,R2s[fileCnt],true);
+			}else{
+				fprintf(stderr,"\033[1;31mError: file %s and %s must have same file type!\033[0m\n",R1s[fileCnt].c_str(),R2s[fileCnt].c_str());
+			}
+		}else{
+			if(file_is_gz){
+				fqFileReader = new rabbit::fq::FastqFileReader(R1s[fileCnt],*fastqPool,R2s[fileCnt],false);
+			}else{
+				fprintf(stderr,"\033[1;31mError: file %s and %s must have same file type!\033[0m\n",R1s[fileCnt].c_str(),R2s[fileCnt].c_str());
+			}
+		}
+		
 		while (true){
 			rabbit::fq::FastqPairChunk *fqPairChunk = new rabbit::fq::FastqPairChunk;
 			fqPairChunk->chunk = fqFileReader->readNextPairChunk();
@@ -227,8 +245,10 @@ int producer_pe_task(const ktrim_param &kp, rabbit::fq::FastqDataPool * fastqPoo
 
 // comusmer task
 void consumer_pe_task(ktrim_param &kp, rabbit::fq::FastqDataPool *fastqPool, FqDataPairChunkQueue &dq, int thread_num, ktrim_stat *kstat,
-						unsigned int* buffer_size, writeBufferTotal * buffer_head){
-	rabbit::int64 read_count  = 0;
+						unsigned int* read_count_total, unsigned int* buffer_size, writeBufferTotal* cur_buffer_tail,
+						std::atomic_bool* consumer_task_finished, std::atomic_int* consumer_finished_num){
+	int consumer_num = kp.thread;
+	unsigned int read_count  = 0;
 	rabbit::int64 chunk_id;
 	rabbit::fq::FastqPairChunk* fqPairChunk = new rabbit::fq::FastqPairChunk;
 	CPEREAD * read = new CPEREAD [ READS_PER_BATCH ];
@@ -248,13 +268,133 @@ void consumer_pe_task(ktrim_param &kp, rabbit::fq::FastqDataPool *fastqPool, FqD
 		read[i].qual2 = read_data + j;
 		j += MAX_READ_CYCLE;
 	}
+	writeBufferTotal * buffer_temp;
+	int buffer_pos_j;
 	while(dq.Pop(chunk_id,fqPairChunk->chunk)){
-		chunkFormat_PE(fqPairChunk->chunk,read,true);
+		unsigned int loaded = chunkFormat_PE(fqPairChunk->chunk,read,true);
+		read_count += loaded;
 		//找到合适的buffer的位置
-		lock(buffer_size_mtx);
-		workingThread_PE_C( thread_num, 0, end, read, kstat, &writebuffer, kp );
+		buffer_size_mtx.lock();
+		if(chunk_id >= *buffer_size){
+			// 扩容
+			writeBufferTotal* buffer_new = new writeBufferTotal(CHUNK_NUM, MEM_PER_CHUNK, (chunk_id / CHUNK_NUM), true);
+			*buffer_size += CHUNK_NUM;
+			buffer_tail_mtx.lock();
+			cur_buffer_tail->next1 = buffer_new;
+			cur_buffer_tail = cur_buffer_tail -> next1;
+			buffer_tail_mtx.unlock();
+		}else{
+			// 寻找应该放入的位置 (i,j)
+			int buffer_pos_i = chunk_id / CHUNK_NUM;
+			buffer_pos_j = chunk_id % CHUNK_NUM;
+			buffer_head_mtx.lock();
+			buffer_temp =  buffer_head;
+			while(true){
+				if(buffer_temp->buffer_id_ == buffer_pos_i)
+					break;
+				buffer_temp = buffer_temp->next1;
+			}
+			buffer_head_mtx.unlock();
+		}
+		buffer_size_mtx.unlock();	
+		workingThread_PE_C( thread_num, 0, loaded, read, kstat, buffer_temp, buffer_pos_j, kp );
 	}
 
+	read_count_total[thread_num] = read_count;
+	consumer_finished_num++;
+	if(*consumer_finished_num == consumer_num)
+		*consumer_task_finished = true;
+}
+
+// writer_pe_task
+int writer_pe_task(ktrim_param& kp, std::atomic_bool* consumer_task_finished){
+	string fileName = kp.outpre;
+	fileName += ".read1.fq";
+	const char* fname  = fileName.c_str();
+	if(isFileExist(fname)){
+		// remove
+		if(remove(fname)){
+			fprintf(stderr,"\033[1;34mError: remove file %s error!\033[0m\n",fname);
+			exit(0);
+		}
+	}
+	FILE *fout1 = fopen( fname, "wt" );
+	fileName[ fileName.size()-4 ] = '2';	// read1 -> read2
+	fname = fileName.c_str();
+	if(isFileExist(fname)){
+		// remove
+		if(remove(fname)){
+			fprintf(stderr,"\033[1;34mError: remove file %s error!\033[0m\n",fname);
+			exit(0);
+		}
+	}
+	FILE *fout2 = fopen( fname, "wt" );
+	if( fout1==NULL || fout2==NULL ) {
+		fprintf( stderr, "\033[1;31mError: write file failed!\033[0m\n" );
+		fclose( fout1 );
+		fclose( fout2 );
+		exit(0);
+	}
+
+	int buffer_pos_j = 0;
+
+	while(!(*consumer_task_finished)){
+		if(buffer_head->buffer1[buffer_pos_j][MEM_PER_CHUNK-1] == 'd'){
+			fprintf(fout1,buffer_head->buffer1[buffer_pos_j]);
+			fprintf(fout2,buffer_head->buffer2[buffer_pos_j]);
+			buffer_pos_j++;
+			if(buffer_pos_j >= CHUNK_NUM){
+				// 移动到下个buffer node
+				buffer_head_mtx.lock();
+				while(buffer_head->next1 == NULL){
+					if(*consumer_task_finished)
+						break;
+				}
+				if(buffer_head->next1){
+					writeBufferTotal * tmp = buffer_head;
+					buffer_head = buffer_head->next1;
+					tmp->free();
+					buffer_head_mtx.unlock();
+					buffer_pos_j = 0;
+				}
+			}
+		}
+	}
+	if(buffer_pos_j >= CHUNK_NUM){
+		if(buffer_head->next1){
+			writeBufferTotal * tmp = buffer_head;
+			buffer_head = buffer_head->next1;
+			// delete tmp
+			tmp->free();
+			buffer_pos_j = 0;
+		}else{
+			fclose(fout1);
+			fclose(fout2);
+			return 0;
+		}
+	}
+	while(buffer_head->buffer1[buffer_pos_j][MEM_PER_CHUNK - 1] == 'd'){
+		fprintf(fout1,buffer_head->buffer1[buffer_pos_j]);
+		fprintf(fout2,buffer_head->buffer2[buffer_pos_j]);
+		buffer_pos_j++;
+		if(buffer_pos_j >= CHUNK_NUM){
+			if(buffer_head->next1){
+				writeBufferTotal * tmp = buffer_head;
+				buffer_head = buffer_head->next1;
+				// delete tmp
+				tmp->free();
+				buffer_pos_j = 0;
+			}else{
+				fclose(fout1);
+				fclose(fout2);
+				return 0;
+			}
+		}
+	}
+
+	fclose(fout1);
+	fclose(fout2);
+	return 0;
 }
 
 int process_PE_C( const ktrim_param &kp ) {
@@ -262,15 +402,23 @@ int process_PE_C( const ktrim_param &kp ) {
 	FqDataPairChunkQueue queue1(256,1);
 
 	unsigned int consumer_num = kp.thread;
+	std::atomic_int consumer_finished_num;
+	std::atomic_bool consumer_task_finished;
+	std::atomic_init(&consumer_finished_num,0);
+	std::atomic_init(&consumer_task_finished,false);
 
 	ktrim_stat kstat;
 	kstat.dropped	   = new unsigned int [ consumer_num ];
 	kstat.real_adapter = new unsigned int [ consumer_num ];
 	kstat.tail_adapter = new unsigned int [ consumer_num ];
+	unsigned int * read_count_total = new unsigned int [ consumer_num ];
 
 	// 初始化输出
+	// buffer_size_mtx.lock();
 	unsigned int buffer_size = CHUNK_NUM;
-	writeBufferTotal * buffer_head = new writeBufferTotal(CHUNK_NUM,MEM_PER_CHUNK,true);
+	// buffer_size_mtx.unlock();
+	buffer_head = new writeBufferTotal(CHUNK_NUM,MEM_PER_CHUNK,0,true);
+	writeBufferTotal * cur_buffer_tail = buffer_head;
 
 	// producer
 	std::thread producer(producer_pe_task,kp,fastqPool,std::ref(queue1));
@@ -281,41 +429,42 @@ int process_PE_C( const ktrim_param &kp ) {
 		kstat.dropped[tn] = 0;
 		kstat.real_adapter[tn] = 0;
 		kstat.tail_adapter[tn] = 0;
-
-		consumer_threads[tn] = new std::thread(std::bind(&consumer_pe_task,kp,fastqPool,std::ref(queue1), tn, &kstat,buffer_size,buffer_head));
+		read_count_total[tn] = 0;
+		consumer_threads[tn] = new std::thread(std::bind(&consumer_pe_task,kp,fastqPool,std::ref(queue1), 
+			tn, &kstat, read_count_total, buffer_size, cur_buffer_tail, &consumer_task_finished, &consumer_finished_num));
 	}
 
-	
+	// writer task 
+	std::thread* writer = new std::thread(std::bind(&writer_pe_task, kp, &consumer_task_finished));
 
-
-	string fileName = kp.outpre;
-	fileName += ".read1.fq";
-	FILE *fout1 = fopen( fileName.c_str(), "wt" );
-	fileName[ fileName.size()-4 ] = '2';	// read1 -> read2
-	FILE *fout2 = fopen( fileName.c_str(), "wt" );
-	if( fout1==NULL || fout2==NULL ) {
-		fprintf( stderr, "\033[1;31mError: write file failed!\033[0m\n" );
-		fclose( fout1 );
-		fclose( fout2 );
-		return 103;
+	producer.join();
+	for(int tn = 0; tn < consumer_num; tn++){
+		consumer_threads[tn]->join();
 	}
+	writer->join();
 
 	register unsigned int line = 0;
-	
-
 	// write trim.log
-	fileName = kp.outpre;
+	string fileName = kp.outpre;
 	fileName += ".trim.log";
-	ofstream fout( fileName.c_str() );
+	const char * fname = fileName.c_str();
+	if(isFileExist(fname)){
+		// delete file
+		if(remove(fname) != 0){
+			fprintf( stderr, "\033[1;34mError: remove file %s error!\033[0m\n",fname);
+		}
+	}
+	ofstream fout( fname );
 	if( fout.fail() ) { 
 		fprintf( stderr, "\033[1;34mError: cannot write log file!\033[0m\n" );
 		return 105;
 	}
 	int dropped_all=0, real_all=0, tail_all=0;
-	for( unsigned int i=0; i!=kp.thread; ++i ) {
+	for( unsigned int i=0; i < consumer_num; ++i ) {
 		dropped_all += kstat.dropped[i];
 		real_all += kstat.real_adapter[i];
 		tail_all += kstat.tail_adapter[i];
+		line += read_count_total[i];
 	}
 	fout << "Total\t"    << line		<< '\n'
 		 << "Dropped\t"  << dropped_all << '\n'
@@ -331,7 +480,7 @@ int process_PE_C( const ktrim_param &kp ) {
 
 	return 0;
 }
-
+/***
 int process_single_thread_PE_C( const ktrim_param &kp ) {
 //	fprintf( stderr, "process_single_thread_PE_C\n" );
 	// IO speed-up
@@ -493,4 +642,6 @@ int process_single_thread_PE_C( const ktrim_param &kp ) {
 
 	return 0;
 }
+
+*/
 

@@ -24,7 +24,21 @@
 #include "io/Reference.h"
 #include "io/Formater.h"
 #include <stdint.h>
+#include <sys/stat.h>
 using namespace std;
+
+writeBufferTotal* buffer_head;
+
+typedef rabbit::core::TDataQueue<rabbit::fq::FastqDataChunk> FqDataChunkQueue;
+typedef rabbit::core::TDataPool<writeBufferTotal> WriteBufferDataPool; //定义write buffer 的数据池
+typedef rabbit::core::TDataQueue<writeBufferTotal> WriteBufferQueue;
+typedef rabbit::core::TDataQueue<rabbit::fq::FastqDataPairChunk> FqDataPairChunkQueue;
+
+// Determine if the file exists or not
+inline bool isFileExist(const char* filename){
+	struct stat buffer;   
+  	return (stat(filename, &buffer) == 0); 
+}
 
 // format
 int neoGetLine(rabbit::fq::FastqDataChunk *&chunk, uint64_t &pos, uint64_t &len) {
@@ -86,10 +100,10 @@ int chunkFormat(rabbit::fq::FastqDataChunk *fqDataChunk, CSEREAD *read, bool mHa
   return seq_count;
 }
 
-int chunkFormat_PE(rabbit::fq::FastqDataPairChunk* chunk,CPEREAD * read, bool mHasQuality = true){
+unsigned int chunkFormat_PE(rabbit::fq::FastqDataPairChunk* chunk,CPEREAD * read, bool mHasQuality = true){
 	rabbit::fq::FastqDataChunk * left_chunk = chunk->left_part;
 	rabbit::fq::FastqDataChunk * right_chunk = chunk->right_part;
-	uint64_t seq_count = 0;
+	unsigned int seq_count = 0;
 	uint64_t pos_1 = 0;
 	neoReference ref1;
 	uint64_t pos_2 = 0;

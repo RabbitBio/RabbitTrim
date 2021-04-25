@@ -30,15 +30,9 @@
 // #include <boost/bind.hpp>
 
 using namespace std;
-
-typedef rabbit::core::TDataQueue<rabbit::fq::FastqDataChunk> FqDataChunkQueue;
-typedef rabbit::core::TDataPool<writeBufferTotal> WriteBufferDataPool; //定义write buffer 的数据池
-typedef rabbit::core::TDataQueue<writeBufferTotal> WriteBufferQueue;
-
 // 同步输出缓存链表的头节点指针
 std::mutex mtx_buffer;
 std::mutex  mtx_queue;
-writeBufferTotal* buffer_head;
 int buffer_head_pos = 0;
 
 inline int get_num(writeBufferTotal* cb){

@@ -91,6 +91,8 @@ const int CHUNK_NUM = 1 << 7;
 const int MEM_PER_CHUNK = 1 << 22; // chunk的大小
 
 typedef struct writeBufferTotal{
+	int buffer_id_;
+	bool isFinished = false;
 	char** buffer1;// buffer 存储经过quality-trim 和 adapter-trim 后满足条件的read,包括read的id、seq和qual
 	char** buffer2;
 	int chunk_num_ = 0;
@@ -122,8 +124,9 @@ typedef struct writeBufferTotal{
 		next1 = NULL;
 		next2 = NULL;		
 	}
-	writeBufferTotal(int chunk_num, int mem_per_chunk,bool isPE){
+	writeBufferTotal(int chunk_num, int mem_per_chunk,int buffer_id,bool isPE){
 		assert( isPE == true);
+		buffer_id_ = buffer_id;
 		chunk_num_ = chunk_num;
 		mem_per_chunk_ = mem_per_chunk;
 		buffer1 = new char*[chunk_num];
