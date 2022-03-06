@@ -164,9 +164,9 @@ void workingThread_SE_C_Multi( unsigned int tn, int chunk_id, unsigned int start
 	char index_10 = kp.adapter_index1[0];
 	char index_11 = kp.adapter_index1[1];
 	char index_12 = kp.adapter_index1[2];
-	char index_20 = kp.adapter_index1[0];
-	char index_21 = kp.adapter_index1[1];
-	char index_22 = kp.adapter_index1[2];
+	char index_20 = kp.adapter_index3[0];
+	char index_21 = kp.adapter_index3[1];
+	char index_22 = kp.adapter_index3[2];
 
 	const int16_t ** seed_pos_1 = new const int16_t*[72]; // 9*8
 	const int16_t ** seed_pos_2 = new const int16_t*[72]; // 9*8
@@ -214,6 +214,31 @@ void workingThread_SE_C_Multi( unsigned int tn, int chunk_id, unsigned int start
 		find_seed(wkr->seq,num_,seed_pos_1, seed_pos_2, 0, 0, 
 					index_10, index_11, index_12, index_20, index_21, index_22);
 		
+       // //test find_seed 
+       // ofstream fout_test("my.log",ios::app); 
+       // if(fout_test.fail()){
+       //     fprintf( stderr, "\033[1;34mError: cannot write  test log file!\033[0m\n" );
+	   //     exit(0); 
+       // }
+       // for(int fff = 0; fff < 72; fff++){
+       //     if(seed_pos_1[fff] != NULL){
+       //         for(int jj = 1; jj <= seed_pos_1[fff][0]; jj++){
+       //             fout_test <<  seed_pos_1[fff][jj] <<" ";
+
+       //         }
+       //     }
+       //      if(seed_pos_2[fff] != NULL){
+       //         for(int jj = 1; jj <= seed_pos_2[fff][0]; jj++){
+       //             fout_test <<  seed_pos_2[fff][jj]-3 <<" ";
+
+       //         }
+       //     }
+       // }
+       // fout_test << "\n";
+       // fout_test.close();
+
+        // 为了避免出现位置比前面位置小的的情况 在找到一个合适位置时 额外读取下一个迭代
+
 		last_seed = impossible_seed;	// a position which cannot be in seed
 		bool isFind = false;
 		int fs = 0;
@@ -232,7 +257,7 @@ void workingThread_SE_C_Multi( unsigned int tn, int chunk_id, unsigned int start
 			if(isFind) break;
 			int num_2 = seed_pos_2[fs][0] + 1;
 			for(int ss = 1; ss < num_2; ss++){
-				tmp = seed_pos_2[fs][ss];
+				tmp = seed_pos_2[fs][ss] - 3;
 				if(tmp == last_seed || tmp < 0 || tmp >= wkr->size) continue;
 				last_seed = tmp;
 				if( check_mismatch_dynamic_SE_C( wkr, tmp, kp ) ){
@@ -285,8 +310,8 @@ void workingThread_SE_C_Multi( unsigned int tn, int chunk_id, unsigned int start
 		// b1stored += sprintf( writebuffer->buffer1[tn]+writebuffer->b1stored[tn],
 		// 										"%s\n%s\n+\n%s\n", wkr->id, wkr->seq, wkr->qual);
 	}
-	writebuffer_total->buffer1[chunk_id][b1stored] = 0;
-	writebuffer_total->buffer1[chunk_id][MEM_PER_CHUNK-1] = 'd'; // 最后一位设置为标志位 表示当前chunk处理完成
+    writebuffer_total->buffer1[chunk_id][b1stored] = 0;
+    writebuffer_total->buffer1[chunk_id][MEM_PER_CHUNK-1] = 'd'; // 最后一位设置为标志位 表示当前chunk处理完成
 	delete []seed_pos_1;
 	delete []seed_pos_2;
 }

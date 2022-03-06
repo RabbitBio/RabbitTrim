@@ -8,7 +8,8 @@ using namespace std;
 __m512i idx =  _mm512_set_epi32(11,10,9,8,7,6,5,4,3,2,1,0,0,0,0,0);
 inline __m512i _mm512_fake_slli_si512_1(__m512i a, __m512i  zero_, __m512i idx){
     __m512i sl = _mm512_mask_permutexvar_epi32(zero_, 0xfff0,  idx, a);
-    return _mm512_alignr_epi8(a,sl,16-1);
+    return _mm512_alignr_epi8(a,sl,(16-1));
+    //return _mm512_alignr_epi8(a,sl,16-1);
 }
 
 void find_seed(char* seq,int num_, const int16_t** seed_pos_1, const int16_t** seed_pos_2, int p1, int p2,

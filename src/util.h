@@ -28,6 +28,7 @@
 using namespace std;
 
 writeBufferTotal* buffer_head;
+writeBufferTotal* buffer_tail;
 
 typedef rabbit::core::TDataQueue<rabbit::fq::FastqDataChunk> FqDataChunkQueue;
 typedef rabbit::core::TDataPool<writeBufferTotal> WriteBufferDataPool; //定义write buffer 的数据池
@@ -383,6 +384,35 @@ bool check_mismatch_dynamic_SE_C( CSEREAD *read, unsigned int pos, const ktrim_p
 
 	return true;
 }
+//bool check_mismatch_dynamic_SE_C( CSEREAD *read, unsigned int pos, const ktrim_param & kp ) {
+//	register unsigned int mis = 0;
+//	register unsigned int i, len;
+//	len = read->size - pos;
+//	if( len > kp.adapter_len )
+//		len = kp.adapter_len;
+//	// len =  min(seq_left_len,adapter_len)
+//
+//	register unsigned int max_mismatch_dynamic; // 允许出现的最大不匹配的碱基数量 
+//	// update in v1.1.0: allows the users to set the proportion of mismatches
+//	if( kp.use_default_mismatch ) {
+//		max_mismatch_dynamic = len >> 3;
+//		if( (max_mismatch_dynamic<<3) != len )
+//		 	++ max_mismatch_dynamic;
+//	} else {
+//		  max_mismatch_dynamic = ceil( len * kp.mismatch_rate );
+//		//max_mismatch_dynamic = floor( len * kp.mismatch_rate );
+//	}
+//
+//	register const char *p = read->seq;
+//	for( i=0; i!=len; ++i ) {
+//		if( p[pos+i] != kp.adapter_r1[i] ) {
+//			if( mis == max_mismatch_dynamic ) return false;
+//			++ mis;
+//		}
+//	}
+//
+//	return true;
+//}
 
 /*
  * use dynamic max_mismatch as the covered size can range from 3 to a large number such as 50,

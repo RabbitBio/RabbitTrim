@@ -221,7 +221,7 @@ int producer_pe_task(const ktrim_param &kp, rabbit::fq::FastqDataPool * fastqPoo
 				fprintf(stderr,"\033[1;31mError: file %s and %s must have same file type!\033[0m\n",R1s[fileCnt].c_str(),R2s[fileCnt].c_str());
 			}
 		}else{
-			if(file_is_gz){
+			if(!file_is_gz){
 				fqFileReader = new rabbit::fq::FastqFileReader(R1s[fileCnt],*fastqPool,R2s[fileCnt],false);
 			}else{
 				fprintf(stderr,"\033[1;31mError: file %s and %s must have same file type!\033[0m\n",R1s[fileCnt].c_str(),R2s[fileCnt].c_str());
@@ -238,14 +238,14 @@ int producer_pe_task(const ktrim_param &kp, rabbit::fq::FastqDataPool * fastqPoo
 		delete fqFileReader;
 	}
 	dq.SetCompleted();
-	// std::cout<<"Input files have "<<n_chunks<<" chunks "<<std::endl;
+	std::cout<<"Input files have "<<n_chunks<<" chunks "<<std::endl;
 	return 0;
 
 }
 
 // comusmer task
-void consumer_pe_task(ktrim_param &kp, rabbit::fq::FastqDataPool *fastqPool, FqDataPairChunkQueue &dq, int thread_num, ktrim_stat *kstat,
-						unsigned int* read_count_total, unsigned int* buffer_size, writeBufferTotal* cur_buffer_tail,
+void consumer_pe_task(const ktrim_param &kp, rabbit::fq::FastqDataPool *fastqPool, FqDataPairChunkQueue &dq, int thread_num, ktrim_stat *kstat,
+						unsigned int* read_count_total, unsigned int *buffer_size,
 						std::atomic_bool* consumer_task_finished, std::atomic_int* consumer_finished_num){
 	int consumer_num = kp.thread;
 	unsigned int read_count  = 0;
@@ -272,22 +272,31 @@ void consumer_pe_task(ktrim_param &kp, rabbit::fq::FastqDataPool *fastqPool, FqD
 	int buffer_pos_j;
 	while(dq.Pop(chunk_id,fqPairChunk->chunk)){
 		unsigned int loaded = chunkFormat_PE(fqPairChunk->chunk,read,true);
+		fastqPool->Release(fqPairChunk->chunk->left_part);
+		fastqPool->Release(fqPairChunk->chunk->right_part);
 		read_count += loaded;
 		//找到合适的buffer的位置
+		// cout << "consumer : 等待获取 buffer_size_mtx" <<endl; 
 		buffer_size_mtx.lock();
+		// cout << "consumer : 已经获取 buffer_size_mtx" <<endl;
 		if(chunk_id >= *buffer_size){
 			// 扩容
 			writeBufferTotal* buffer_new = new writeBufferTotal(CHUNK_NUM, MEM_PER_CHUNK, (chunk_id / CHUNK_NUM), true);
 			*buffer_size += CHUNK_NUM;
+			// cout << "consumer : 等待获取 buffer_tail_mtx" <<endl; 
 			buffer_tail_mtx.lock();
-			cur_buffer_tail->next1 = buffer_new;
-			cur_buffer_tail = cur_buffer_tail -> next1;
+			// cout << "consumer : 已经获取 buffer_tail_mtx" <<endl; 
+			buffer_tail->next1 = buffer_new;
+			buffer_tail = buffer_tail -> next1;
 			buffer_tail_mtx.unlock();
+			// cout << "consumer : 释放 buffer_tail_mtx" <<endl; 
 		}else{
 			// 寻找应该放入的位置 (i,j)
 			int buffer_pos_i = chunk_id / CHUNK_NUM;
 			buffer_pos_j = chunk_id % CHUNK_NUM;
+			// cout << "consumer : 等待获取 buffer_head_mtx" <<endl;
 			buffer_head_mtx.lock();
+			// cout << "consumer : 已经获取 buffer_head_mtx" <<endl;
 			buffer_temp =  buffer_head;
 			while(true){
 				if(buffer_temp->buffer_id_ == buffer_pos_i)
@@ -295,19 +304,22 @@ void consumer_pe_task(ktrim_param &kp, rabbit::fq::FastqDataPool *fastqPool, FqD
 				buffer_temp = buffer_temp->next1;
 			}
 			buffer_head_mtx.unlock();
+			// cout << "consumer : 已经释放 buffer_head_mtx" <<endl;
 		}
-		buffer_size_mtx.unlock();	
+		buffer_size_mtx.unlock();
+		// cout << "consumer : 已经释放 buffer_size_mtx" <<endl;
 		workingThread_PE_C( thread_num, 0, loaded, read, kstat, buffer_temp, buffer_pos_j, kp );
 	}
 
 	read_count_total[thread_num] = read_count;
 	consumer_finished_num++;
+	cout << "thread finished  " << thread_num <<endl;
 	if(*consumer_finished_num == consumer_num)
 		*consumer_task_finished = true;
 }
 
 // writer_pe_task
-int writer_pe_task(ktrim_param& kp, std::atomic_bool* consumer_task_finished){
+int writer_pe_task(const ktrim_param& kp, std::atomic_bool* consumer_task_finished){
 	string fileName = kp.outpre;
 	fileName += ".read1.fq";
 	const char* fname  = fileName.c_str();
@@ -345,21 +357,30 @@ int writer_pe_task(ktrim_param& kp, std::atomic_bool* consumer_task_finished){
 			buffer_pos_j++;
 			if(buffer_pos_j >= CHUNK_NUM){
 				// 移动到下个buffer node
-				buffer_head_mtx.lock();
 				while(buffer_head->next1 == NULL){
-					if(*consumer_task_finished)
+					// cout << "writer : 等待下一个 buffer " <<endl;
+					if(*consumer_task_finished){
 						break;
+						cout << " consumer finished" <<endl;
+					}
+						
 				}
 				if(buffer_head->next1){
+					// cout << "writer : 等待获取 buffer_head_mtx" <<endl;
+					buffer_head_mtx.lock();
+					// cout << "writer : 已经获取 buffer_head_mtx" <<endl;
 					writeBufferTotal * tmp = buffer_head;
 					buffer_head = buffer_head->next1;
 					tmp->free();
 					buffer_head_mtx.unlock();
+					// cout << "writer : 已经释放 buffer_head_mtx" <<endl;
 					buffer_pos_j = 0;
 				}
 			}
 		}
 	}
+
+	cout << "test 1" <<endl;
 	if(buffer_pos_j >= CHUNK_NUM){
 		if(buffer_head->next1){
 			writeBufferTotal * tmp = buffer_head;
@@ -373,6 +394,7 @@ int writer_pe_task(ktrim_param& kp, std::atomic_bool* consumer_task_finished){
 			return 0;
 		}
 	}
+	cout << "test 2" <<endl;
 	while(buffer_head->buffer1[buffer_pos_j][MEM_PER_CHUNK - 1] == 'd'){
 		fprintf(fout1,buffer_head->buffer1[buffer_pos_j]);
 		fprintf(fout2,buffer_head->buffer2[buffer_pos_j]);
@@ -391,7 +413,7 @@ int writer_pe_task(ktrim_param& kp, std::atomic_bool* consumer_task_finished){
 			}
 		}
 	}
-
+cout << "test 3" <<endl;
 	fclose(fout1);
 	fclose(fout2);
 	return 0;
@@ -418,7 +440,7 @@ int process_PE_C( const ktrim_param &kp ) {
 	unsigned int buffer_size = CHUNK_NUM;
 	// buffer_size_mtx.unlock();
 	buffer_head = new writeBufferTotal(CHUNK_NUM,MEM_PER_CHUNK,0,true);
-	writeBufferTotal * cur_buffer_tail = buffer_head;
+	buffer_tail = buffer_head;
 
 	// producer
 	std::thread producer(producer_pe_task,kp,fastqPool,std::ref(queue1));
@@ -431,7 +453,7 @@ int process_PE_C( const ktrim_param &kp ) {
 		kstat.tail_adapter[tn] = 0;
 		read_count_total[tn] = 0;
 		consumer_threads[tn] = new std::thread(std::bind(&consumer_pe_task,kp,fastqPool,std::ref(queue1), 
-			tn, &kstat, read_count_total, buffer_size, cur_buffer_tail, &consumer_task_finished, &consumer_finished_num));
+			tn, &kstat, read_count_total, &buffer_size, &consumer_task_finished, &consumer_finished_num));
 	}
 
 	// writer task 
