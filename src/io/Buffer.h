@@ -37,7 +37,7 @@ class Buffer {
 #else
     buffer = new byte[size_];
 #endif
-    size = size_;
+    size = size_; // size 的单位是Byte
   }
 
   ~Buffer() { delete buffer; }
@@ -53,13 +53,12 @@ class Buffer {
 	/// resize the buffer
   void Extend(uint64 size_, bool copy_ = false) {
 #if (USE_64BIT_MEMORY)
+    if (size > size_) return;
     uint64 size64 = size / 8;
     if (size64 * 8 < size) size64 += 1;
 
     uint64 newSize64 = size_ / 8;
     if (newSize64 * 8 < size_) newSize64 += 1;
-
-    if (size > size_) return;
 
     if (size64 == newSize64) {
       size = size_;
@@ -70,7 +69,7 @@ class Buffer {
 
     if (copy_) std::copy(buffer, buffer + size64, p);
 #else
-    if (size > size_) return;
+    if (size >= size_) return;
 
     byte *p = new byte[size_];
 
@@ -91,13 +90,16 @@ class Buffer {
  private:
   Buffer(const Buffer &) {}
   Buffer &operator=(const Buffer &) { return *this; }
+  void operator=(const Buffer& b){
+    size = b.size; 
+  }
 
 #if (USE_64BIT_MEMORY)
   uint64 *buffer;
 #else
   byte *buffer;
 #endif
-  uint64 size;
+  uint64 size; // 表示buffer的大小 单位是Byte
 };
 
 /**

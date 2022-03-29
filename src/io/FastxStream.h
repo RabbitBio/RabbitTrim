@@ -399,6 +399,10 @@ class FastqFileReader {
       FCLOSE(mFile);
       mFile = NULL;
     }
+    if (mFile2 != NULL) {
+      FCLOSE(mFile2);
+      mFile2 = NULL;
+    }
     if (mZipFile != NULL && isZipped) {
       gzclose(mZipFile);
       mZipFile = NULL;

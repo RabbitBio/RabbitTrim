@@ -86,8 +86,6 @@ typedef struct {
 
 // 设置输出的超大数组
 const int CHUNK_NUM = 1 << 7;
-// const int MEM_SE_WRITER = WRITE_PER_BATCH * (MAX_READ_ID+MAX_READ_CYCLE+MAX_READ_CYCLE);
-// const int MEM_PE_WRITER = WRITE_PER_BATCH * (MAX_READ_ID+MAX_READ_CYCLE+MAX_READ_CYCLE) * 2;
 const int MEM_PER_CHUNK = 1 << 22; // chunk的大小
 
 typedef struct writeBufferTotal{

@@ -58,7 +58,7 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 	const char * prg = argv[0];
 	int index;
 	int ch;
-	while( (ch = getopt(argc, argv, param_list) ) != -1 ) {
+	while( (ch = getopt(argc, argv, param_list) ) != -1 ) { //getopt 定义在<unistd.h>
 		switch( ch ) {
 			case '1': kp.FASTQ1 = optarg; break;
 			case '2': kp.FASTQ2 = optarg; break;

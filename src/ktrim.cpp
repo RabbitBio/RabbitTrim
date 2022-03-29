@@ -33,20 +33,10 @@ int main( int argc, char *argv[] ) {
 		return retValue;
 
 	double start,finish;
-	// cout<<"CLOCK_PER_SEC: "<<CLOCKS_PER_SEC<<endl;
 	start = getTime();
 	if( kp.FASTQ2 == NULL ) {  // single-end data
-		// if( kp.thread == 1 )
-		// 	retValue = process_single_thread_SE_C( kp );
-		// else
-		//  retValue = process_multi_thread_SE_C( kp );
-			retValue = process_SE_C( kp );
+		retValue = process_SE_C( kp );
 	} else {
-		// if( kp.thread == 1 )
-		// 	retValue = process_single_thread_PE_C( kp );
-		// else
-		// 	retValue = process_multi_thread_PE_C( kp );
-
 		retValue = process_PE_C( kp );
 	}
 	finish = getTime();

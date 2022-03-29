@@ -162,7 +162,7 @@ double getTime(){
 	return (double)tv.tv_sec+(double)tv.tv_usec/1000000;
 }
 
-// extract file names
+// extract file names Ktrim支持多个输入文件 根据逗号分隔
 void extractFileNames( const char *str, vector<string> & Rs ) {
 	string fileName = "";
 	for(unsigned int i=0; str[i]!='\0'; ++i) {

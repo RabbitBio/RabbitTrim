@@ -194,7 +194,7 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 // producer
 int producer_pe_task(const ktrim_param &kp, rabbit::fq::FastqDataPool * fastqPool, FqDataPairChunkQueue& dq){
 	vector<string> R1s, R2s;
-	extractFileNames( kp.FASTQ1, R1s );
+	extractFileNames( kp.FASTQ1, R1s ); // 获取所有的输入文件
 	extractFileNames( kp.FASTQ2, R2s );
 	if( R1s.size() != R2s.size() ) {
 		fprintf( stderr, "\033[1;31mError: Read1 and Read2 do not contain equal sized files!\033[0m\n" );
@@ -206,8 +206,8 @@ int producer_pe_task(const ktrim_param &kp, rabbit::fq::FastqDataPool * fastqPoo
 		rabbit::fq::FastqFileReader * fqFileReader;
 		// 判断是否是gz文件 如果不一致需要退出终止
 		bool file_is_gz = false;
-		register unsigned int i = R1s[fileCnt].size() - 3;
-		register const char * p = R1s[fileCnt].c_str();
+		unsigned int i = R1s[fileCnt].size() - 3;
+		const char * p = R1s[fileCnt].c_str();
 		if( p[i]=='.' && p[i+1]=='g' && p[i+2]=='z' ) {
 			file_is_gz = true;
 		}
@@ -229,6 +229,7 @@ int producer_pe_task(const ktrim_param &kp, rabbit::fq::FastqDataPool * fastqPoo
 		}
 		
 		while (true){
+			// rabbit::fq::FastqPairChunk *fqPairChunk = new rabbit::fq::FastqPairChunk;
 			rabbit::fq::FastqPairChunk *fqPairChunk = new rabbit::fq::FastqPairChunk;
 			fqPairChunk->chunk = fqFileReader->readNextPairChunk();
 			if(fqPairChunk->chunk == NULL) break;
@@ -253,6 +254,7 @@ void consumer_pe_task(const ktrim_param &kp, rabbit::fq::FastqDataPool *fastqPoo
 	rabbit::fq::FastqPairChunk* fqPairChunk = new rabbit::fq::FastqPairChunk;
 	CPEREAD * read = new CPEREAD [ READS_PER_BATCH ];
 	char * read_data = new char [ MEM_PE_READSET ];
+	// 下面为CPEREAD分配内存空间
 	for(int i = 0, j= 0; i < READS_PER_BATCH ; i++){
 		read[i].id1   = read_data + j;
 		j += MAX_READ_ID;
@@ -436,9 +438,7 @@ int process_PE_C( const ktrim_param &kp ) {
 	unsigned int * read_count_total = new unsigned int [ consumer_num ];
 
 	// 初始化输出
-	// buffer_size_mtx.lock();
 	unsigned int buffer_size = CHUNK_NUM;
-	// buffer_size_mtx.unlock();
 	buffer_head = new writeBufferTotal(CHUNK_NUM,MEM_PER_CHUNK,0,true);
 	buffer_tail = buffer_head;
 
