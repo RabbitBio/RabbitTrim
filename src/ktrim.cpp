@@ -19,6 +19,7 @@
 #include "param_handler.h"
 #include "pe_handler.h"
 #include "se_handler.h"
+#include "logger.h"
 
 using namespace std;
 
@@ -33,11 +34,12 @@ int main( int argc, char *argv[] ) {
 		return retValue;
 
 	double start,finish;
+	rabbit::Logger logger(true, true, !kp.quiet);
 	start = getTime();
 	if( kp.FASTQ2 == NULL ) {  // single-end data
-		retValue = process_SE_C( kp );
+		retValue = process_SE_C(kp);
 	} else {
-		retValue = process_PE_C( kp );
+		retValue = process_PE_C(kp, logger);
 	}
 	finish = getTime();
 	cout<<"Time: "<<finish-start<<" s"<<endl;

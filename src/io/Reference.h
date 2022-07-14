@@ -14,6 +14,7 @@ struct Reference {
   std::string quality;
   std::string strand;
   uint64_t length;
+  uint64_t headPos;
   uint64_t gid;
 };
 

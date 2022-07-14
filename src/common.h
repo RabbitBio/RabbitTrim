@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 #include <assert.h>
+#include <cstdio>
 using namespace std;
 
 const char * VERSION = "1.2.2 (Jan 2021)";
@@ -244,7 +245,7 @@ typedef struct {
 	unsigned int min_length;
 	unsigned int phred;
 	unsigned int minqual;
-	unsigned int quality;
+	unsigned int quality; // quality = phred + minqual  即计算出来的read中质量分数的最小值
 	unsigned int window;
 
 	const char *seqKit, *seqA, *seqB;
@@ -257,9 +258,19 @@ typedef struct {
 
 	bool use_default_mismatch;
 	float mismatch_rate;
+	
+	// trimmomatic params
+	char* trim_log;
+	bool validatePairing;
+	char* trim_steps;
+	bool quiet;
+	
+	ktrim_param(){}
+	
+	
 } ktrim_param;
 
-const char * param_list = "1:2:U:o:t:k:s:p:q:w:a:b:m:hv";
+const char * param_list = "1:2:U:o:t:k:s:p:q:w:a:b:m:hvl:c:d:e";
 
 // definition of functions
 void usage();

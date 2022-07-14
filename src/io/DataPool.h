@@ -44,7 +44,7 @@ class TDataPool {
   const uint32 bufferPartSize;
 
   part_pool availablePartsPool;
-  part_pool allocatedPartsPool;
+  part_pool allocatedPartsPool; // useless
 
   th::mutex mutex;
   th::condition_variable partsAvailableCondition;

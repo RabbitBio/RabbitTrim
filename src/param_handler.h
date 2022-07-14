@@ -33,7 +33,7 @@ void init_param( ktrim_param &kp ) {
 
 	kp.thread = 1;
 	kp.min_length = 36;
-	kp.phred   = 33;
+	kp.phred   = 0; // 如果用户不指定phred即phred==0时则根据前1w条read自主判断
 	kp.minqual = 20;
 	kp.quality = 53;
 	kp.window  = 5;
@@ -51,6 +51,11 @@ void init_param( ktrim_param &kp ) {
 
 	kp.use_default_mismatch = true;
 	kp.mismatch_rate = 0.125;
+
+	// trimmomatic 
+	kp.trim_log = nullptr;
+	kp.validatePairing = false;
+	kp.quiet = false;
 }
 
 // process user-supplied parameters
@@ -60,14 +65,14 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 	int ch;
 	while( (ch = getopt(argc, argv, param_list) ) != -1 ) { //getopt 定义在<unistd.h>
 		switch( ch ) {
-			case '1': kp.FASTQ1 = optarg; break;
-			case '2': kp.FASTQ2 = optarg; break;
+			case '1': kp.FASTQ1 = optarg; break; // input1
+			case '2': kp.FASTQ2 = optarg; break; // input2
 			case 'U': kp.FASTQU = optarg; break;
-			case 'o': kp.outpre = optarg; break;
+			case 'o': kp.outpre = optarg; break; //baseout 
 			case 't': kp.thread = atoi(optarg); break;
 			case 'k': kp.seqKit = optarg; break;
 			case 's': kp.min_length = atoi(optarg); break;
-			case 'p': kp.phred = atoi(optarg); break;
+			case 'p': kp.phred = atoi(optarg); break;  // phred
 			case 'q': kp.minqual = atoi(optarg); break;
 			case 'w': kp.window  = atoi(optarg); break;
 			case 'a': kp.seqA = optarg; break;
@@ -76,6 +81,16 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 
 			case 'h': usage(); return 100;
 			case 'v': cout << VERSION << '\n'; return 100;
+			
+			// trimmomatic
+			// 指定 trimlog文件
+			case 'l': kp.file_trim_log = optarg; break;
+			// check pair date 相当于Trimmomatic中的validatePairs 验证双端数据的 default = false
+			case 'c': kp.validatePairing = true;
+			// trim steps 
+			case 'd': kp.trim_steps = optarg; break;
+			// logger quiet
+			case 'e': kp.quiet = true;
 
 			default:
 				//cerr << "\033[1;31mError: invalid argument ('" << (char)optopt << "')!\033[0m\n";
@@ -122,11 +137,13 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 		cerr << "Warning: we discourage the usage of more than 4-threads.\n";
 	}
 	if( kp.min_length < 10 ) {
+		// TODO 检查Trimmomatic中的min_length 是多少
 		cerr << "\033[1;31mError: invalid min_length! Must be a positive number larger than 10!\033[0m\n";
 		usage();
 		return 11;
 	}
 	if( kp.phred==0 || kp.minqual==0 || kp.window==0 ) {
+		// TODO 当phred==0 时表示用户未指定 trimmomatic中是先预先读取了1w条数据 然后根据这1w条read中的质量分数进行判断
 		cerr << "\033[1;31mError: invalid phred/quality/window parameter! Must be positive numbers!\033[0m\n";
 		usage();
 		return 12;

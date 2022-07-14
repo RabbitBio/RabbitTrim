@@ -16,6 +16,8 @@
 #include <functional>
 #include <mutex>
 #include <atomic>
+#include "logger.h"
+#include "PairingValidator.h"
 
 using namespace std;
 std::mutex buffer_head_mtx;
@@ -252,9 +254,9 @@ void consumer_pe_task(const ktrim_param &kp, rabbit::fq::FastqDataPool *fastqPoo
 	unsigned int read_count  = 0;
 	rabbit::int64 chunk_id;
 	rabbit::fq::FastqPairChunk* fqPairChunk = new rabbit::fq::FastqPairChunk;
-	CPEREAD * read = new CPEREAD [ READS_PER_BATCH ];
+	CPEREAD * read = new CPEREAD [ READS_PER_BATCH ]; // 存储chunk中的read
 	char * read_data = new char [ MEM_PE_READSET ];
-	// 下面为CPEREAD分配内存空间
+	// 下面为CPEREAD分配内存空间 TODO 如果read_id 或者 read_seq的长度超过预设的最大值呢？ 预设的最大值应该是多少才会合理？
 	for(int i = 0, j= 0; i < READS_PER_BATCH ; i++){
 		read[i].id1   = read_data + j;
 		j += MAX_READ_ID;
@@ -278,7 +280,7 @@ void consumer_pe_task(const ktrim_param &kp, rabbit::fq::FastqDataPool *fastqPoo
 		fastqPool->Release(fqPairChunk->chunk->right_part);
 		read_count += loaded;
 		//找到合适的buffer的位置
-		// cout << "consumer : 等待获取 buffer_size_mtx" <<endl; 
+		// cout << "consumer : 等待获取 buffer_size_mtx" <<endl;
 		buffer_size_mtx.lock();
 		// cout << "consumer : 已经获取 buffer_size_mtx" <<endl;
 		if(chunk_id >= *buffer_size){
@@ -421,7 +423,7 @@ cout << "test 3" <<endl;
 	return 0;
 }
 
-int process_PE_C( const ktrim_param &kp ) {
+int process_PE_C( const ktrim_param &kp, rabbit::Logger &logger) {
 	rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(256,MEM_PER_CHUNK);
 	FqDataPairChunkQueue queue1(256,1);
 
@@ -435,10 +437,27 @@ int process_PE_C( const ktrim_param &kp ) {
 	kstat.dropped	   = new unsigned int [ consumer_num ];
 	kstat.real_adapter = new unsigned int [ consumer_num ];
 	kstat.tail_adapter = new unsigned int [ consumer_num ];
-	unsigned int * read_count_total = new unsigned int [ consumer_num ];
+	unsigned int * read_count_total = new unsigned int [ consumer_num ]; // TODO 将read_count_total 加入到 ktrim_stat 结构体中
+	
+	// PairingValidator
+	rabbit::PairingValidator* pairingValidator;
+	if(kp.validatePairing)
+		pairingValidator = new rabbit::PairingValidator(logger);
+
+	// trim log
+	const char* trimLogName = kp.trim_log;
+	ofstream trimLog(trimLogName);
+	if(trimLog.fail()){
+		logger.errorln("Can not open file " + trimLogName);
+		return 105;
+	}
+
+	// trimmomatic output 
+	
+	
 
 	// 初始化输出
-	unsigned int buffer_size = CHUNK_NUM;
+	unsigned int buffer_size = CHUNK_NUM; // 表示每个输出对象writeBufferTotal中chunk的数量 表示当前输出链表中能够容纳的输出chunk的数目
 	buffer_head = new writeBufferTotal(CHUNK_NUM,MEM_PER_CHUNK,0,true);
 	buffer_tail = buffer_head;
 

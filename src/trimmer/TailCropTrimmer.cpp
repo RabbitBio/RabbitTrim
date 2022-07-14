@@ -1,0 +1,11 @@
+#include "TailCropTrimmer.h"
+
+using namespace rabbit;
+
+void TailCropTrimmer::processOneRecord(Reference& rec){
+    int len = rec.length;
+    int toTrim;
+    toTrim = len - bases > maxLength ? len - maxLength : bases;
+    toTrim = len < toTrim ? len : toTrim;
+    rec.length = len - toTrim;
+}
