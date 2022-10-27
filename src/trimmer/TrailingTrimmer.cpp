@@ -21,3 +21,10 @@ void TrailingTrimmer::processOneRec(Reference& rec){
     // rec.seq = "";
     // rec.quality = "";
 }
+
+
+void TrailingTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+    for(Reference& rec : recs){
+        processOneRec(rec);
+    }
+}

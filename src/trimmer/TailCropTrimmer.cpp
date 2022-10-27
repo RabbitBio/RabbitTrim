@@ -9,3 +9,9 @@ void TailCropTrimmer::processOneRecord(Reference& rec){
     toTrim = len < toTrim ? len : toTrim;
     rec.length = len - toTrim;
 }
+
+void TailCropTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+    for(Reference& rec : recs){
+        processOneRec(rec);
+    }
+}

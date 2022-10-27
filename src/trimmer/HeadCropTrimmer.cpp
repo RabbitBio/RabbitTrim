@@ -11,3 +11,10 @@ void HeadCropTrimmer::processOneRecord(Reference& rec){
     rec.length = len - toTrim;
     
 }
+
+void HeadCropTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+    for(Reference& rec : recs){
+        processOneRec(rec);
+    }
+}
+        

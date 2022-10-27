@@ -25,6 +25,9 @@
 #include "io/Formater.h"
 #include <stdint.h>
 #include <sys/stat.h>
+#include <string>
+#include <vector>
+#include <string.h>
 using namespace std;
 
 writeBufferTotal* buffer_head;
@@ -34,6 +37,45 @@ typedef rabbit::core::TDataQueue<rabbit::fq::FastqDataChunk> FqDataChunkQueue;
 typedef rabbit::core::TDataPool<writeBufferTotal> WriteBufferDataPool; //定义write buffer 的数据池
 typedef rabbit::core::TDataQueue<writeBufferTotal> WriteBufferQueue;
 typedef rabbit::core::TDataQueue<rabbit::fq::FastqDataPairChunk> FqDataPairChunkQueue;
+
+inline bool startsWith(string const &value, string const &starting) {
+  if (starting.size() > value.size()) return false;
+  return equal(starting.begin(), starting.end(), value.begin());
+}
+inline bool endsWith(string const &value, string const &ending) {
+  if (ending.size() > value.size()) return false;
+  return equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
+vector<string> split(const string& str, const string& delim) {
+	vector<string> res;
+	if("" == str) return res;
+	//先将要切割的字符串从string类型转换为char*类型
+	char * strs = new char[str.length() + 1] ; //不要忘了
+	strcpy(strs, str.c_str()); 
+ 
+	char * d = new char[delim.length() + 1];
+	strcpy(d, delim.c_str());
+ 
+	char *p = strtok(strs, d);
+	while(p) {
+		res.emplace_back(p); //存入结果数组
+		p = strtok(NULL, d);
+	}
+ 
+	return res;
+}
+
+string& ClearHeadTailSpace(string &str)   
+{  
+    if (str.empty())   
+    {  
+        return str;  
+    }  
+    str.erase(0,str.find_first_not_of(" "));  
+    str.erase(str.find_last_not_of(" ") + 1);  
+    return str;  
+}  
 
 // Determine if the file exists or not
 inline bool isFileExist(const char* filename){

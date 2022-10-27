@@ -27,3 +27,9 @@ void LeadingTrimmer::processOneRecord(Reference& rec){
     rec.headPos += len;
     rec.length = 0;
 }
+
+void LeadingTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+    for(Reference& rec : recs){
+        processOneRec(rec);
+    }
+}

@@ -25,7 +25,7 @@ using namespace std;
 
 int main( int argc, char *argv[] ) {
 	// process the command line parameters
-	static ktrim_param kp;
+	static RabbitTrimParam kp;
 	init_param( kp );
 	int retValue = process_cmd_param( argc, argv, kp );
 	if( retValue == 100 )	// help or version

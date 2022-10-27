@@ -31,7 +31,7 @@ int IlluminaMediumClippingSeq::readsSeqCompare(Reference& rec){
     std::set<int> offsetSet;
     // packSeqExternal(rec)
     uint64* packRec = packSeqExternal(rec);
-    uint64* packClip = pack;
+    uint64* packClip = pack; 
 
     int packRecLen = rec.length;
     int packRecMax = packRecLen - minSequenceOverlap;
@@ -86,7 +86,7 @@ uint64* IlluminaMediumClippingSeq::packSeqExternal(Reference& rec){
 
     for(int i = 0; i < len + 15; i++){
         int tmp = 0;
-        if(i < seqLen)
+        if(i < len)
             tmp = packCh(rec.seq.at(cur_headPos + i), false);
         pack = (pack << 4) | tmp;
         if(i >= 15) out[i - 15] = pack;
@@ -138,3 +138,5 @@ float IlluminaMediumClippingSeq::calculateDifferenceQuality(Reference& rec, int 
     float l = calculateMaximumRange(likelihood, overlap);
     return l;
 }
+
+

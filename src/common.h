@@ -265,30 +265,30 @@ typedef struct {
 	char* trim_steps;
 	bool quiet;
 	
-	ktrim_param(){}
+	RabbitTrimParam(){}
 	
 	
-} ktrim_param;
+} RabbitTrimParam;
 
 const char * param_list = "1:2:U:o:t:k:s:p:q:w:a:b:m:hvl:c:d:e";
 
 // definition of functions
 void usage();
-void init_param( ktrim_param &kp );
-int  process_cmd_param( int argc, char * argv[], ktrim_param &kp );
-void print_param( const ktrim_param &kp );
+void init_param( RabbitTrimParam &rp );
+int  process_cmd_param( int argc, char * argv[], RabbitTrimParam &rp );
+void print_param( const RabbitTrimParam &rp );
 void extractFileNames( const char *str, vector<string> & Rs );
 
 // C-style
 unsigned int load_batch_data_PE_C( FILE * fq1, FILE * fq2, CPEREAD *loadingReads, unsigned int num );
-bool check_mismatch_dynamic_PE_C( const CPEREAD *read, unsigned int pos, const ktrim_param &kp );
-int process_single_thread_PE_C( const ktrim_param &kp );
-int process_multi_thread_PE_C(  const ktrim_param &kp );
+bool check_mismatch_dynamic_PE_C( const CPEREAD *read, unsigned int pos, const RabbitTrimParam &rp );
+int process_single_thread_PE_C( const RabbitTrimParam &rp );
+int process_multi_thread_PE_C(  const RabbitTrimParam &rp );
 
 unsigned int load_batch_data_SE_C( FILE * fp, CSEREAD *loadingReads, unsigned int num );
-bool check_mismatch_dynamic_SE_C( const char * p, unsigned int pos, const ktrim_param &kp );
-int process_single_thread_SE_C( const ktrim_param &kp );
-int process_multi_thread_SE_C(  const ktrim_param &kp );
+bool check_mismatch_dynamic_SE_C( const char * p, unsigned int pos, const RabbitTrimParam &rp );
+int process_single_thread_SE_C( const RabbitTrimParam &rp );
+int process_multi_thread_SE_C(  const RabbitTrimParam &rp );
 
 #endif
 

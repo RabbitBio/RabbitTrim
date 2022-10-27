@@ -16,3 +16,9 @@ void ToPhred64Trimmer::processOneRecord(Reference& rec){
     std::string qualityTmp = std::string(new_quality);
     rec.quality = qualityTmp; 
 }
+
+void ToPhred64Trimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+    for(Reference& rec : recs){
+        processOneRec(rec);
+    }
+}

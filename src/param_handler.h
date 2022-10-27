@@ -25,7 +25,7 @@ static char tmp_index2[ADAPTER_INDEX_SIZE+1];
 static char tmp_index3[ADAPTER_INDEX_SIZE+1];
 
 // default parameters
-void init_param( ktrim_param &kp ) {
+void init_param( RabbitTrimParam &kp ) {
 	kp.FASTQ1 = NULL;
 	kp.FASTQ2 = NULL;
 	kp.FASTQU = NULL;
@@ -59,7 +59,7 @@ void init_param( ktrim_param &kp ) {
 }
 
 // process user-supplied parameters
-int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
+int process_cmd_param( int argc, char * argv[], RabbitTrimParam &kp ) {
 	const char * prg = argv[0];
 	int index;
 	int ch;

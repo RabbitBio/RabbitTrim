@@ -85,3 +85,9 @@ void MaximumInformationTrimmer::processOneRecord(Reference& rec){
     rec.length = maxScorePosition + 1;
     
 }
+
+void MaximumInformationTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+    for(Reference& rec : recs){
+        processOneRec(rec);
+    }
+}

@@ -13,6 +13,7 @@ namespace rabbit
             ~CropTrimmer(){}
             
             void processOneRecord(Reference& rec);
+            void processRecords(std::vector<Reference&> recs, bool isPair = false, bool isReverse = false);
             
         private:
             int len;

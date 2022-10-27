@@ -6,6 +6,7 @@
 #include "../Logger.h"
 #include "../common.h"
 #include "Trimmer.h"
+#include "IlluminaClippingTrimmer.h"
 #include "LeadingTrimmer.h"
 #include "TrailingTrimmer.h"
 #include "HeadCropTrimmer.h"
@@ -28,7 +29,7 @@ namespace rabbit
             TrimmerFactory(rabbit::Logger& logger_):logger(logger_){}
             ~TrimmerFactory() = default;
             
-            rabbit::Trimmer* makeOneTrimmer(std::string step, ktrim_param& kp){
+            rabbit::Trimmer* makeOneTrimmer(std::string step, RabbitTrimParam& rp){
                 std::string trimmerName;
                 std::string trimmerArgs;
                 std::size_t idx = step.find(":");
@@ -36,17 +37,43 @@ namespace rabbit
                 if(idx != std::string::npos)
                     trimmerArgs = step.substr(idx+1);
 
-
                 if(trimmerName.compare("ILLUMINACLIP")) {
-
+                    std::string fastaAdapterFile;
+                    int seedMaxMiss;
+                    int minPalindromeLikelihood;
+                    int minSequenceLikelihood;
+                    int minPrefix = 1;
+                    bool palindromeKeepBoth = false; 
+                    
+                    std::size_t pos = trimmerArgs.find(":");
+                    fastaAdapterFile = trimmerArgs.substr(0, pos);
+                    std::string::size_type sz;
+                    std::string::size_type cur_pos = pos + 1;
+                    seedMaxMiss = std::stoi(trimmerArgs.substr(cur_pos), &sz);
+                    cur_pos += sz;
+                    minPalindromeLikelihood = std::stoi(trimmerArgs.substr(cur_pos), &sz);
+                    cur_pos += sz;
+                    minSequenceLikelihood = std::stoi(trimmerArgs.substr(cur_pos), &sz);
+                    cur_pos += sz;
+                    
+                    if(trimmerArgs.size() > cur_pos){
+                        minPrefix = std::stoi(trimmerArgs.substr(cur_pos), &sz);
+                        cur_pos += sz;
+                        if(trimmerArgs.size() > cur_pos){
+                            std::string keepBothStr = trimmerArgs.substr(cur_pos);
+                            if(keepBothStr.compare("true")) palindromeKeepBoth = true;
+                        }
+                    }
+                    
+                    return new IlluminaClippingTrimmer(logger, rp.phred, fastaAdapterFile, seedMaxMiss, minPalindromeLikelihood, minSequenceLikelihood, minPrefix, palindromeKeepBoth);
                 }
                 if(trimmerName.compare("LEADING")) {
                     int qual = std::stoi(trimmerArgs, nullptr);
-                    return new LeadingTrimmer(qual, kp.phred);
+                    return new LeadingTrimmer(qual, rp.phred);
                 }
                 if(trimmerName.compare("TRAILING")) {
                     int qual = std::stoi(trimmerArgs, nullptr);
-                    return new TrailingTrimmer(qual, kp.phred);
+                    return new TrailingTrimmer(qual, rp.phred);
                 }
                 if(trimmerName.compare("HEADCROP")) {
                     std::size_t pos = trimmerArgs.find(":");
@@ -78,7 +105,7 @@ namespace rabbit
                     int windowLength = std::stoi(trimmerArgs, nullptr);
                     std::string requiredQuality_str = trimmerArgs.substr(pos+1);
                     int requiredQuality = std::stoi(requiredQuality_str, nullptr);
-                    return new SlidingWindowTrimmer(windowLength, requiredQuality, kp.phred);
+                    return new SlidingWindowTrimmer(windowLength, requiredQuality, rp.phred);
                 }
                 if(trimmerName.compare("MAXINFO")) {
                     std::size_t pos = trimmerArgs.find(":");
@@ -97,7 +124,7 @@ namespace rabbit
                 }
                 if(trimmerName.compare("AVGQUAL")) {
                     int qual = std::stoi(trimmerArgs, nullptr);
-                    return new AvgQualTrimmer(qual, kp.phred);
+                    return new AvgQualTrimmer(qual, rp.phred);
                 }
                 if(trimmerName.compare("BASECOUNT")) {
                     std::size_t pos = trimmerArgs.find(":");
@@ -112,10 +139,10 @@ namespace rabbit
                     }
                 }
                 if(trimmerName.compare("TOPHRED33")) {
-                    return new ToPhred33Trimmer(kp.phred) ;
+                    return new ToPhred33Trimmer(rp.phred) ;
                 }
                 if(trimmerName.compare("TOPHRED64")) {
-                    return new ToPhred64Trimmer(kp.phred) ;
+                    return new ToPhred64Trimmer(rp.phred) ;
                 }
                 
                 logger.errorln("Unknown trimmer: " + trimmerName);

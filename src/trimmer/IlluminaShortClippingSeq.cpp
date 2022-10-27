@@ -54,13 +54,13 @@ IlluminaShortClippingSeq::IlluminaShortClippingSeq(rabbit::Logger& logger_, int 
     seedMax = seedMaxMiss * 2;
     minSequenceLikelihood = minSequenceLikelihood_;
     minSequenceOverlap = minSequenceOverlap_;
-    logger.infoln("Using Short Clipping Sequence: '" + seq + "'");
     seq = seq_;
+    logger.infoln("Using Short Clipping Sequence: '" + seq + "'");
     seqLen = seq.length();
     // calcSingleMask 
     assert(seqLen < 16);
     mask = 0xffffffffffffffffULL;
-    mask = mask << ((16 - seqLen) * 4);
+    mask <<= ((16 - seqLen) * 4);
     
     // packSeqExternal clipPack
     pack = new uint64[seqLen];
@@ -86,10 +86,11 @@ int IlluminaShortClippingSeq::readsSeqCompare(Reference& rec){
     int packClipLen = seqLen;
 
     int packRecMax = packRecLen - minSequenceOverlap;
-    int packClipMax = packClipLen - minSequenceOverlap;
+    int packClipMax = packClipLen - minSequenceOverlap; // 是不是应该+1呀？ 不然可能为0
     
     
     std::set<int> offsetSet;
+    // offset 默认升序排列 
 
     for(int i = 0; i < packRecMax; i++){
         uint64 comboMask = calcSingleMask(packRecLen - i) & mask;
@@ -101,7 +102,6 @@ int IlluminaShortClippingSeq::readsSeqCompare(Reference& rec){
                 offsetSet.emplace(offset);
             }
         }
-
     }
     
     for(std::set<int>::iterator iter = offsetSet.begin(); iter != offsetSet.end(); iter++){
@@ -119,7 +119,6 @@ int IlluminaShortClippingSeq::readsSeqCompare(Reference& rec){
         }
         
     }
-
     return std::INT_MAX;
 }
 
@@ -133,7 +132,7 @@ uint64* IlluminaShortClippingSeq::packSeqExternal(Reference& rec){
 
     for(int i = 0; i < len + 15; i++){
         int tmp = 0;
-        if(i < seqLen)
+        if(i < len)
             tmp = packCh(rec.seq.at(cur_headPos + i), false);
         pack = (pack << 4) | tmp;
         if(i >= 15) out[i - 15] = pack;

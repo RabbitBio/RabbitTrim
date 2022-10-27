@@ -2,9 +2,10 @@
 
 using namespace rabbit;
 
-IlluminaPrefixPair::IlluminaPrefixPair(std::string prefix1_, std::string prefix2_, rabbit::Logger& logger, int phred_, int minPrefix_, int seedMaxMiss, int minPalindromeLikelihood_, bool palindromeKeepBoth_) : logger(logger){
+IlluminaPrefixPair::IlluminaPrefixPair(std::string prefix1_, std::string prefix2_, rabbit::Logger& logger, int phred_, int minPrefix_, int seedMaxMiss_, int minPalindromeLikelihood_, bool palindromeKeepBoth_) : logger(logger){
     phred = phred_;
     minPrefix = minPrefix_;
+    seedMaxMiss = seedMaxMiss_;
     seedMax = seedMaxMiss * 2;
     minPalindromeLikelihood = minPalindromeLikelihood_;
     palindromeKeepBoth = palindromeKeepBoth_;
@@ -12,9 +13,11 @@ IlluminaPrefixPair::IlluminaPrefixPair(std::string prefix1_, std::string prefix2
     int prefix1Len = prefix1_.length();
     int prefix2Len = prefix2_.length();
     int minLength = prefix1Len < prefix2Len ? prefix1Len : prefix2Len;
-    prefix1 = prefix1_.substr(prefix1Len - minLength) ;
-    prefix2 = prefix2_.substr(prefix2Len - minLength) ;
+    prefix1 = prefix1_.substr(0, minLength) ;
+    prefix2 = prefix2_.substr(0, minLength) ;
     prefixLen = minLength;
+    logger.infoln("Using PrefixPair: '" + prefix1 + "' and '" + prefix2 + "'"); // debug
+    
 }
 
 int IlluminaPrefixPair::packCh(char ch, bool reverse){
@@ -116,7 +119,7 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(Reference& rec1, 
         int qual2 = offset2 < prefixLen ? 100 : (rec2.quality.at(cur_headPos2 + offset2 - prefixLen) - phred);
         int minQual = qual1 < qual2 ? qual1 : qual2;
         
-        float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f;
+        float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
         
         likelihood = (ch1 == 'N' || ch2 == 'N') ? 0 : s;
         totalLikelihood += likelihood;
@@ -125,10 +128,10 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(Reference& rec1, 
 }
             
 
-int IlluminaPrefixPair::palindromeReadCompare(Reference& rec1, Reference& rec2){
+int IlluminaPrefixPair::palindromeReadsCompare(Reference& rec1, Reference& rec2){
     // prefix + rec.seq 的长度为16的kmer数组 ， 注意：对于reverse read得到的是其反向互补的kmer 
     uint64* pack1 = packSeqInternal(rec1, false);
-    uint64* pack2 = packSeqInternal(rec2, true); 
+    uint64* pack2 = packSeqInternal(rec2, true);
     
     int testIndex = 0;
     int refIndex = prefixLen; // 参考序列从不包含prefix的第一个kmer开始
@@ -141,7 +144,7 @@ int IlluminaPrefixPair::palindromeReadCompare(Reference& rec1, Reference& rec2){
 
     
     // if(pack1.length <= refIndex)
-    if(rec1Len <= 15 || rec2Len <= 15) return -1; // TODO ? why
+    if(rec1Len <= 15 || rec2Len <= 15) return std::INT_MAX; // TODO ? why
 
     int count = 0;
     int seedSkip = prefixLen - 16; 
@@ -150,17 +153,19 @@ int IlluminaPrefixPair::palindromeReadCompare(Reference& rec1, Reference& rec2){
         count = seedSkip;
     }
 
-    int64 ref1, ref2;
+    uint64 ref1, ref2;
 
     int seqlen1 = rec1Len + prefixLen;
     int seqlen2 = rec2Len + prefixLen; 
 
     int maxCount = (seqlen1 > seqlen2 ? seqlen1 : seqlen2) - 15 - minPrefix;
     
+    // count = testIndex + refIndex - prefixLen
+    
     for(int i = count; i < maxCount; i++){
         ref1 = pack1[refIndex];
         ref2 = pack2[refIndex]; 
-        if((testIndex < pack2Len && __builtin_popcountll(ref1 ^ pack2[testIndex]) <= seedMax) || (testIndex < pack1Len && __builtin_popcountll(ref2 ^ pack1[testIndex]) < seedMax)){
+        if((testIndex < pack2Len && __builtin_popcountll(ref1 ^ pack2[testIndex]) <= seedMax) || (testIndex < pack1Len && __builtin_popcountll(ref2 ^ pack1[testIndex]) <= seedMax)){
             int totalOverLap = count + prefixLen + 16;
             int skip1 = 0;
             int skip2 = 0;
@@ -173,12 +178,13 @@ int IlluminaPrefixPair::palindromeReadCompare(Reference& rec1, Reference& rec2){
             float palindromeLikelihood = calculatePalindromeDifferenceQuality(rec1, rec2, actualOverlap, skip1, skip2);
             
             if(palindromeLikelihood >= minPalindromeLikelihood){
-                return totalOverLap - 2 * prefixLen ; // 返回的是不包括prefix的两条序列overlap的长度
+                assert(totalOverLap - 2 * prefixLen);
+                return totalOverLap - 2 * prefixLen ; // 返回的是不包括prefix的两条序列overlap的长度 即序列的真实长度 NOTE:返回值可能大于序
             }
         }
         count++;
-        if((count & 1) == 0 && refIndex + 1 < pack1Len  && refIndex + 1 < pack2Len) refIndex++;
+        if((count & 1) == 0 && refIndex + 1 < pack1Len  && refIndex + 1 < pack2Len) refIndex++; // count是偶数移动refIndex 奇数移动testIndex
         else testIndex++;
     }
-    return -1;
+    return std::INT_MAX;
 }

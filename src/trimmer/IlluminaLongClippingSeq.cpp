@@ -4,7 +4,7 @@ using namespace rabbit;
 
 
 IlluminaLongClippingSeq::IlluminaLongClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_) : logger(logger_){
-    logger.infoln("Using Long Clipping Sequence: '" + seq + "'");
+    logger.infoln("Using Long Clipping Sequence: '" + seq_ + "'");
     phred = phred_;
     seq = seq_;
     seqLen = seq.length();

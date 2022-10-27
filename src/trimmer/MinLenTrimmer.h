@@ -13,6 +13,7 @@ namespace rabbit
             ~MinLenTrimmer() = default;
         
             void processOneRecord(Reference& rec);
+            void processRecords(std::vector<Reference&> recs, bool isPair = false, bool isReverse = false);
         private:
             int minLen;
     };
