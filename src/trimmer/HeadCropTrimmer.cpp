@@ -1,6 +1,6 @@
 #include "HeadCropTrimmer.h"
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 void HeadCropTrimmer::processOneRecord(Reference& rec){
     int len = rec.length;
@@ -12,7 +12,7 @@ void HeadCropTrimmer::processOneRecord(Reference& rec){
     
 }
 
-void HeadCropTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+void HeadCropTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
         processOneRec(rec);
     }

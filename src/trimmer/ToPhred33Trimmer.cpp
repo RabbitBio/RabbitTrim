@@ -1,6 +1,6 @@
 #include "ToPhred33Trimmer.h"
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 void ToPhred33Trimmer::processOneRecord(Reference& rec){
     if(phred == 33) return;
@@ -16,7 +16,7 @@ void ToPhred33Trimmer::processOneRecord(Reference& rec){
     rec.quality = qualityTmp; 
 }
 
-void ToPhred33Trimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+void ToPhred33Trimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
         processOneRec(rec);
     }

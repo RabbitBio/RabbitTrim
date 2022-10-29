@@ -5,22 +5,25 @@
 
 namespace rabbit
 {
-    class LeadingTrimmer : public Trimmer{
-        private:
-            int qual;    
-            int phred;
-        public:
-            LeadingTrimmer(int qual_, int phred_){
-                qual = qual_;
-                phred = phred_;
-            }
-            ~LeadingTrimmer(){}
+    namespace trim
+    {
+        class LeadingTrimmer : public Trimmer{
+            private:
+                int qual;    
+                int phred;
+            public:
+                LeadingTrimmer(int qual_, int phred_){
+                    qual = qual_;
+                    phred = phred_;
+                }
+                ~LeadingTrimmer(){}
 
-            // Trimmer Interface
-            void processOneRecord(Reference& rec);
-            void processRecords(std::vector<Reference&> recs, bool isPair = false, bool isReverse = false);
-            
-    };
+                // Trimmer Interface
+                void processOneRecord(Reference& rec);
+                void processRecords(std::vector<Reference>& recs, bool isPair = false, bool isReverse = false);
+                
+        };
+    } // namespace trim
     
     
 } // namespace rabbit

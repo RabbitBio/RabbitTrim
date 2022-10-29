@@ -1,6 +1,6 @@
 #include "TailCropTrimmer.h"
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 void TailCropTrimmer::processOneRecord(Reference& rec){
     int len = rec.length;
@@ -10,7 +10,7 @@ void TailCropTrimmer::processOneRecord(Reference& rec){
     rec.length = len - toTrim;
 }
 
-void TailCropTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+void TailCropTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
         processOneRec(rec);
     }

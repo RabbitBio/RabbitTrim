@@ -1,6 +1,6 @@
 #include "ToPhred64Trimmer.h"
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 void ToPhred64Trimmer::processOneRecord(Reference& rec){
     if(phred == 64) return;
@@ -17,7 +17,7 @@ void ToPhred64Trimmer::processOneRecord(Reference& rec){
     rec.quality = qualityTmp; 
 }
 
-void ToPhred64Trimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+void ToPhred64Trimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
         processOneRec(rec);
     }

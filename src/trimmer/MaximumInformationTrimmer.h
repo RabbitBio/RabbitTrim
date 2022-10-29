@@ -6,31 +6,34 @@
 
 namespace rabbit
 {
-    class MaximumInformationTrimmer : public Trimmer{
-        public:
-            constexpr int LONGEST_READ = 1000;
-            constexpr int MAXQUAL = 60;
+    namespace trim
+    {
+        class MaximumInformationTrimmer : public Trimmer{
+            public:
+                constexpr int LONGEST_READ = 1000;
+                constexpr int MAXQUAL = 60;
 
-            MaximumInformationTrimmer(int parLength_, float strictness_);
-            ~MaximumInformationTrimmer() = default;
+                MaximumInformationTrimmer(int parLength_, float strictness_);
+                ~MaximumInformationTrimmer() = default;
 
-            void processOneRecord(Reference& rec);
-            void processRecords(std::vector<Reference&> recs, bool isPair = false, bool isReverse = false);
+                void processOneRecord(Reference& rec);
+                void processRecords(std::vector<Reference>& recs, bool isPair = false, bool isReverse = false);
 
-        private:
-            int phred;
-            int parLength; // target length
-            float strictness;
-            
-            double* lengthScoreTmp;
-            double* qualProbTmp;
-            int64* lengthScore;
-            int64* qualProb;
-            
-            double calcNormalization(double* arr, int arrLength, int margin);
-            int64* normalize(double* arr, int arrLength, double ratio);
+            private:
+                int phred;
+                int parLength; // target length
+                float strictness;
+                
+                double* lengthScoreTmp;
+                double* qualProbTmp;
+                int64* lengthScore;
+                int64* qualProb;
+                
+                double calcNormalization(double* arr, int arrLength, int margin);
+                int64* normalize(double* arr, int arrLength, double ratio);
 
-    };
+        };
+    } // namespace trim
     
 } // namespace rabbit
 

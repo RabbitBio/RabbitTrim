@@ -1,6 +1,6 @@
 #include "IlluminaPrefixPair.h"
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 IlluminaPrefixPair::IlluminaPrefixPair(std::string prefix1_, std::string prefix2_, rabbit::Logger& logger, int phred_, int minPrefix_, int seedMaxMiss_, int minPalindromeLikelihood_, bool palindromeKeepBoth_) : logger(logger){
     phred = phred_;

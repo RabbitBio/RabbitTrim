@@ -1,6 +1,6 @@
 #include "IlluminaClippingTrimmer.h"
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 
 IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int phred_, std::string fastaAdapterFile, int seedMaxMiss_, int minPalindromeLikelihood_, int minSequenceLikelihood_, int minPrefix_ = 1, int palindromeKeepBoth_ = false) : logger(logger_){
@@ -251,13 +251,13 @@ void IlluminaClippingTrimmer::processPairRecord(Reference& rec1, Reference& rec2
 }
 
 
-void IlluminaClippingTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+void IlluminaClippingTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     if(isPair){
-        int n = recs.size();
-        ASSERT(n % 2 == 0);
-        for(int i = 0; i < n; i += 2){
+        int n = recs.size() / 2;
+        ASSERT(n * 2 == recs.size());
+        for(int i = 0; i < n; i++){
             Reference& rec1 = recs[i];
-            Reference& rec2 = recs[i + 1];
+            Reference& rec2 = recs[i + n];
             processPairRecord(rec1, rec2);
         }
     }

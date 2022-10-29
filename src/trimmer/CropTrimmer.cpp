@@ -1,6 +1,6 @@
 #include "CropTrimmer.h"
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 void CropTrimmer::processOneRecord(Reference& rec){
     int cur_len = rec.length;
@@ -8,7 +8,7 @@ void CropTrimmer::processOneRecord(Reference& rec){
     rec.length = cur_len;
 }
 
-void CropTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+void CropTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
         processOneRec(rec);
     }

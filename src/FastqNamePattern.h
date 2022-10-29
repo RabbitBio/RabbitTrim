@@ -7,6 +7,7 @@
 
 namespace rabbit{
     const int fastqNamePatternNums = 2;
+    // $2 表示第二个分组匹配结果
     constexpr std::pair<std::string, std::string> casava_13{"(.* )?([^:]+:[0-9]+:[0-9]+:[0-9]+:[0-9]+#[A-Z0-9]+).*", "$2"}; 
     constexpr std::pair<std::string, std::string> casava_18 = std::make_pair("(.* )?([^:]+:[0-9]+:[A-Z0-9]+:[0-9]+:[0-9]+:[0-9]+:[0-9]+).*","$2");
     std::vector<std::pair<std::string, std::string>> fastqNamePatternArray{

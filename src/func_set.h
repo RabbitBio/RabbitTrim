@@ -1,8 +1,6 @@
 #include <vector>
 using namespace std;
 
-
-
 inline void func0( int* seed, int i, int j ){
 }
 inline void func1( int* seed, int i, int j ){

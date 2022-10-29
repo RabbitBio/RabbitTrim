@@ -1,7 +1,7 @@
 #include "LeadingTrimmer.h"
 #include <string>
 
-using namespace rabbit;
+using namespace rabbit::trim;
     
 void LeadingTrimmer::processOneRecord(Reference& rec){
     std::string quality = rec.quality;
@@ -28,7 +28,7 @@ void LeadingTrimmer::processOneRecord(Reference& rec){
     rec.length = 0;
 }
 
-void LeadingTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+void LeadingTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
         processOneRec(rec);
     }

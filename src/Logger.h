@@ -8,7 +8,6 @@ namespace rabbit{
     class Logger{
         private:
             bool showError, showWarning, showInfo;
-        
 
         public:
             Logger(bool showError_, bool showWarning_, bool showInfo_){

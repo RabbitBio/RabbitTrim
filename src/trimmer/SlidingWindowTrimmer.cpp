@@ -1,7 +1,7 @@
 #include "SlidingWindowTrimmer.h"
 #include <vector>
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 void SlidingWindowTrimmer::processOneRecord(Reference& rec){
     int len = rec.length;
@@ -45,7 +45,7 @@ void SlidingWindowTrimmer::processOneRecord(Reference& rec){
     rec.length = 0;
     
 }
-void SlidingWindowTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+void SlidingWindowTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
         processOneRec(rec);
     }

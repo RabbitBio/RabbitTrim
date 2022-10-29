@@ -5,18 +5,21 @@
 
 namespace rabbit
 {
-    class MinLenTrimmer : public Trimmer {
-        public:
-            MinLenTrimmer(int minLen_){
-                minLen = minLen_;
-            }
-            ~MinLenTrimmer() = default;
-        
-            void processOneRecord(Reference& rec);
-            void processRecords(std::vector<Reference&> recs, bool isPair = false, bool isReverse = false);
-        private:
-            int minLen;
-    };
+    namespace trim
+    {
+        class MinLenTrimmer : public Trimmer {
+            public:
+                MinLenTrimmer(int minLen_){
+                    minLen = minLen_;
+                }
+                ~MinLenTrimmer() = default;
+            
+                void processOneRecord(Reference& rec);
+                void processRecords(std::vector<Reference>& recs, bool isPair = false, bool isReverse = false);
+            private:
+                int minLen;
+        };
+    } // namespace trim
 } // namespace rabbit
 
 #endif

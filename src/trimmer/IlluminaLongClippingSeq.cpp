@@ -1,6 +1,6 @@
 #include "IlluminaLongClippingSeq.h"
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 
 IlluminaLongClippingSeq::IlluminaLongClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_) : logger(logger_){

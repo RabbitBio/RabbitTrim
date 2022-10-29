@@ -1,6 +1,6 @@
 #include "AvgQualTrimmer.h"
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 void AvgQualTrimmer::processOneRecord(Reference& rec){
     int len = rec.length;
@@ -17,7 +17,7 @@ void AvgQualTrimmer::processOneRecord(Reference& rec){
 }
 
 
-void AvgQualTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+void AvgQualTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
         processRecords(rec);
     }

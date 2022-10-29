@@ -49,7 +49,6 @@ namespace rabbit{
                     if(ch1 != ch2 && (ch1 != '1' || ch2 != '2')) return false;
                 }
                return true; 
-               
             }
 
             bool validatePair(Reference* rec1, Reference* rec2){

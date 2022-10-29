@@ -1,6 +1,6 @@
 #include "MaximumInformationTrimmer.h"
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 double MaximumInformationTrimmer::calcNormalization(double* arr, int arrLength, int margin){
     double maxVal = arr[0];
@@ -86,7 +86,7 @@ void MaximumInformationTrimmer::processOneRecord(Reference& rec){
     
 }
 
-void MaximumInformationTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+void MaximumInformationTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
         processOneRec(rec);
     }

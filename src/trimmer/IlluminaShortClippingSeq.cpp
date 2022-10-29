@@ -1,6 +1,6 @@
 #include "IlluminaShortClippingSeq.h"
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 uint64 IlluminaShortClippingSeq::calcSingleMask(int length){
     uint64 mask = 0xffffffffffffffffULL; 

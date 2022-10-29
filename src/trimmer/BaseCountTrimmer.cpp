@@ -1,6 +1,6 @@
 #include "BaseCountTrimmer.h"
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 void BaseCountTrimmer::processOneRecord(Reference& rec){
     int count = 0;
@@ -14,7 +14,7 @@ void BaseCountTrimmer::processOneRecord(Reference& rec){
     if(count < minCount || count > maxCount) rec.length = 0;
 }
 
-void BaseCountTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+void BaseCountTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
         processOneRec(rec);
     }

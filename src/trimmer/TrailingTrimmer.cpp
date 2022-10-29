@@ -1,7 +1,7 @@
 #include "TrailingTrimmer.h"
 #include <string>
 
-using namespace rabbit;
+using namespace rabbit::trim;
 
 void TrailingTrimmer::processOneRec(Reference& rec){
     int len = rec.length;
@@ -23,7 +23,7 @@ void TrailingTrimmer::processOneRec(Reference& rec){
 }
 
 
-void TrailingTrimmer::processRecords(std::vector<Reference&> recs, bool isPair, bool isReverse){
+void TrailingTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
         processOneRec(rec);
     }

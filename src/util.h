@@ -36,7 +36,6 @@ writeBufferTotal* buffer_tail;
 typedef rabbit::core::TDataQueue<rabbit::fq::FastqDataChunk> FqDataChunkQueue;
 typedef rabbit::core::TDataPool<writeBufferTotal> WriteBufferDataPool; //定义write buffer 的数据池
 typedef rabbit::core::TDataQueue<writeBufferTotal> WriteBufferQueue;
-typedef rabbit::core::TDataQueue<rabbit::fq::FastqDataPairChunk> FqDataPairChunkQueue;
 
 inline bool startsWith(string const &value, string const &starting) {
   if (starting.size() > value.size()) return false;
@@ -204,7 +203,7 @@ double getTime(){
 	return (double)tv.tv_sec+(double)tv.tv_usec/1000000;
 }
 
-// extract file names Ktrim支持多个输入文件 根据逗号分隔
+// extract file names 
 void extractFileNames( const char *str, vector<string> & Rs ) {
 	string fileName = "";
 	for(unsigned int i=0; str[i]!='\0'; ++i) {

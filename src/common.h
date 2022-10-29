@@ -267,7 +267,6 @@ typedef struct {
 	
 	RabbitTrimParam(){}
 	
-	
 } RabbitTrimParam;
 
 const char * param_list = "1:2:U:o:t:k:s:p:q:w:a:b:m:hvl:c:d:e";
