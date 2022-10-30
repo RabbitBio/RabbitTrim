@@ -6,7 +6,6 @@ TrimStat::TrimStat(){
     readsSurvivingBoth = 0ULL;
     readsSurvivingForward = 0ULL;
     readsSurvivingReverse = 0ULL;
-    
 } 
 
 TrimStat::TrimStat(rabbit::Logger& logger) : logger(logger){
@@ -19,8 +18,14 @@ TrimStat::TrimStat(rabbit::Logger& logger) : logger(logger){
 
 TrimStat::~TrimStat() = default;
 
+void TrimStat::operator=(const TrimStat& ts){
+  readsInput = ts.readsInput;
+  readsSurvivingBoth = ts.readsSurvivingBoth;
+  readsSurvivingForward = ts.readsSurvivingForward;
+  readsSurvivingReverse = ts.readsSurvivingReverse;
+}
+
 void TrimStat::merge(std::vector<TrimStat>& trimStatArr){
-    int n = trimStatArr.size();
     for(auto t : trimStatArr){
         readsInput += t.readsInput;
         readsSurvivingBoth += t.readsSurvivingBoth;
@@ -37,17 +42,17 @@ void TrimStat::printSE(std::string filename){
     double droppedPercent = (100.0 * dropped) / readsInput;
     
     std::ofstream fout(path);
-	if(fout.fail()) { 
-        logger.errorln("\033[1;34mError: cannot open file " + filename +"!\033[0m\n")
-        return;
-	}
+    if(fout.fail()) { 
+          logger.errorln("\033[1;34mError: cannot open file " + filename +"!\033[0m\n");
+          return;
+    }
     fout.setf(std::ios::fixed, std::ios::floatfield);
     fout.precision(2);
     fout << "Input Reads: " << readsInput << '\n'
          << "Surviving Reads: " << readsSurvivingForward << '\n'
          << "Surviving Read Percent: "  << survivingPercent << '\n'
          << "Dropped Reads: " << readsSurvivingForward << '\n'
-         << "Dropped Read Percent: "  << droppedPercent << '\n'
+         << "Dropped Read Percent: "  << droppedPercent << '\n';
     fout.close();
     
 }
@@ -61,10 +66,10 @@ void TrimStat::printPE(std::string filename){
     double droppedPercent = (100.0 * dropped) / readsInput;
     
     std::ofstream fout(path);
-	if(fout.fail()) { 
-        logger.errorln("\033[1;34mError: cannot open file " + filename +"!\033[0m\n")
-        return;
-	}
+    if(fout.fail()) { 
+          logger.errorln("\033[1;34mError: cannot open file " + filename +"!\033[0m\n");
+          return;
+    }
     fout.setf(std::ios::fixed, std::ios::floatfield);
     fout.precision(2);
     fout << "Input Read Pairs: " << readsInput << '\n'
@@ -75,6 +80,6 @@ void TrimStat::printPE(std::string filename){
          << "Reverse Only Surviving Reads: " << readsSurvivingReverse << '\n'
          << "Reverse Only Surviving Read Percent: " << survivingReversePercent << '\n'
          << "Dropped Reads: " << dropped << '\n'
-         << "Dropped Read Percent: "  << droppedPercent << '\n'
+         << "Dropped Read Percent: "  << droppedPercent << '\n';
     fout.close();
 }

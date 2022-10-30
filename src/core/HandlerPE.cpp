@@ -2,9 +2,9 @@
 
 using namespace rabbit::trim;
 
-int rabbit::trim::process_pe(rabbit::RabbitTrimParam& rp, rabbit::Logger &logger) {
+int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &logger) {
 	rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(256,MEM_PER_CHUNK);
-	rabbit::FastqDataPairChunkQueue queue1(256,1);
+	rabbit::trim::FastqDataPairChunkQueue queue1(256,1);
 
 	int consumer_num = rp.threads;
 	std::atomic_int consumer_finished_num;
@@ -12,7 +12,7 @@ int rabbit::trim::process_pe(rabbit::RabbitTrimParam& rp, rabbit::Logger &logger
 	std::atomic_init(&consumer_finished_num,0);
 	std::atomic_init(&consumer_task_finished,false);
 
-    std::vector<rabbit::trim::TrimStat> statsArr(consumer_num, TrimStat());
+    std::vector<rabbit::trim::TrimStat> statsArr;
 
 	// PairingValidator
 	rabbit::PairingValidator* pairingValidator;
@@ -25,22 +25,22 @@ int rabbit::trim::process_pe(rabbit::RabbitTrimParam& rp, rabbit::Logger &logger
     trimmerFactory -> makeTrimmers(rp.steps, rp.phred, trimmers);
 
 	// trim log
-    std::ofstream trimLog(trimLogName);
+    std::ofstream foutTrimLog(rp.trimLog);
     if(rp.trimLog.size()){
-        const char* trimLogName = rp.trimLog.c_str();
-        if(trimLog.fail()){
-            logger.errorln("Can not open file " + trimLogName);
+        if(foutTrimLog.fail()){
+            logger.errorln("Can not open file " + rp.trimLog);
             return 105;
 	    }
     }
-    if(rp.trimLog.size()) trimLog.close();
+    if(rp.trimLog.size()) foutTrimLog.close();
 
 	// producer
-	std::thread producer(rabbit::trim::producer_pe_task, rp, logger, fastqPool, std::ref(queue1));
+	std::thread producer(rabbit::trim::producer_pe_task, std::ref(rp), std::ref(logger), fastqPool, std::ref(queue1));
 
 	// consumer
 	std::thread **consumer_threads = new std::thread* [consumer_num]; 
 	for(int tn = 0; tn < consumer_num; tn++){
+    statsArr.emplace_back();
 		consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task, std::ref(rp), fastqPool, std::ref(queue1), std::ref(statsArr[tn]), trimmers));
 	}
 
@@ -68,12 +68,12 @@ int rabbit::trim::process_pe(rabbit::RabbitTrimParam& rp, rabbit::Logger &logger
 }
 
 // producer
-int rabbit::trim::producer_pe_task(rabbit::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, FastqDataPairChunkQueue& dq){
+int rabbit::trim::producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, FastqDataPairChunkQueue& dq){
 	if(rp.forwardFiles.size() != rp.reverseFiles.size()) {
         logger.errorln("\033[1;31mError: Read1 and Read2 do not contain equal sized files!\033[0m\n");
 		exit(0);
 	}
-	int totalFileCount = forwardFiles.size();
+	int totalFileCount = rp.forwardFiles.size();
 	rabbit::int64 n_chunks = 0;
 	for(int fileCnt = 0; fileCnt < totalFileCount; fileCnt++){
 		rabbit::fq::FastqFileReader * fqFileReader;
@@ -116,11 +116,10 @@ int rabbit::trim::producer_pe_task(rabbit::RabbitTrimParam& rp, rabbit::Logger& 
 
 
 // comusmer task
-void rabbit::trim::consumer_pe_task(rabbit::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, rabbit::TrimStat& rstats,
+void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, rabbit::trim::TrimStat& rstats,
                                     std::vector<rabbit::trim::Trimmer*>& trimmers)
 {
 	int consumer_num = rp.threads;
-	unsigned int read_count  = 0;
 	rabbit::int64 chunk_id;
 	rabbit::fq::FastqPairChunk* fqPairChunk;
     std::vector<Reference> data;

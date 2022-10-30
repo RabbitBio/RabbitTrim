@@ -3,7 +3,7 @@
 
 using namespace rabbit::trim;
 
-void TrailingTrimmer::processOneRec(Reference& rec){
+void TrailingTrimmer::processOneRecord(Reference& rec){
     int len = rec.length;
     std::string seq = rec.seq;
     std::string quality = rec.quality;
@@ -25,6 +25,6 @@ void TrailingTrimmer::processOneRec(Reference& rec){
 
 void TrailingTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
-        processOneRec(rec);
+        processOneRecord(rec);
     }
 }

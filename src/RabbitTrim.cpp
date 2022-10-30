@@ -1,3 +1,4 @@
+#include <sys/sysinfo.h>
 #include <string>
 #include <vector>
 #include "CLI11.hpp"
@@ -45,7 +46,7 @@ int main( int argc, char **argv) {
     // trimm_option_m->required()->check(CLI::IsMember({"PE", "SE"}));
     trimm_flag_pe->excludes(trimm_flag_se)->needs(trimm_option_f)->needs(trimm_option_r);
     trimm_flag_se->excludes(trimm_flag_pe);
-    trimm_option_t->check(CLI::PostiveNumber);
+    trimm_option_t->check(CLI::PositiveNumber);
     trimm_option_p->check(CLI::IsMember(std::set<int> {0, 33, 64}));
     trimm_option_f->check(CLI::ExistingPath);
     trimm_option_r->check(CLI::ExistingPath);
@@ -53,10 +54,10 @@ int main( int argc, char **argv) {
     trimm_option_l->required()->check(CLI::ExistingPath);
     trimm_option_stat->required()->check(CLI::ExistingPath);
     trimm_option_s->required();
-    trimm_option_c->check(CLI::Range(1, 9).descripton("compression level is limited to be between 1 and 9"));
+    trimm_option_c->check(CLI::Range(1, 9).description("compression level is limited to be between 1 and 9"));
     CLI11_PARSE(app, argc, argv);
     
-    rabbit::RabbitTrimParam rp;
+    rabbit::trim::RabbitTrimParam rp;
     rp.threads = threads;
     rp.phred = phred;
     rp.forwardFiles = forwardFiles;
@@ -65,7 +66,7 @@ int main( int argc, char **argv) {
     rp.trimLog = trimLog;
     rp.stats = stats;
     rp.steps = steps;
-    rp.validatePairing = ValidatePairing;
+    rp.validatePairing = validatePairing;
 
 	double start,finish;
 	rabbit::Logger logger(true, true, quiet);

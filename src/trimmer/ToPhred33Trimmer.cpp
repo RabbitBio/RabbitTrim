@@ -18,6 +18,6 @@ void ToPhred33Trimmer::processOneRecord(Reference& rec){
 
 void ToPhred33Trimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
-        processOneRec(rec);
+        processOneRecord(rec);
     }
 }

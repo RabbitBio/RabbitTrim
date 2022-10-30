@@ -70,12 +70,12 @@ uint64* IlluminaPrefixPair::packSeqInternal(Reference& rec, bool reverse){
     if(!reverse){
         uint64 pack = 0;
         for(int i = 0; i < prefixLen; i++){
-            int tmp = pachCh(prefix1.at(i), false);
+            int tmp = packCh(prefix1.at(i), false);
             pack = (pack << 4) | tmp;
             if(i >= 15) out[i - 15] = pack; // 类似于长度为16的kmer
         }
         for(int i = 0; i < seqLen; i++) {
-            int tmp = pachCh(rec.seq.at(i + cur_headPos), false);
+            int tmp = packCh(rec.seq.at(i + cur_headPos), false);
             pack = (pack << 4) | tmp;
             if(i + prefixLen >= 15) out[i + prefixLen - 15] = pack; // 类似于长度为16的kmer
         }
@@ -83,12 +83,12 @@ uint64* IlluminaPrefixPair::packSeqInternal(Reference& rec, bool reverse){
     else{
         uint64 pack = 0;
         for(int i = 0; i < prefixLen; i++){
-            int tmp = pachCh(prefix2.at(i), true);
+            int tmp = packCh(prefix2.at(i), true);
             pack = (pack >> 4) | (tmp << 60);
             if(i >= 15) out[i - 15] = pack;
         }
         for(int i = 0; i < seqLen; i++) {
-            int tmp = pachCh(rec.seq.at(i + cur_headPos), true);
+            int tmp = packCh(rec.seq.at(i + cur_headPos), true);
             pack = (pack >> 4) | (tmp << 60); // 当rec是reverse read时，产生其反向互补链的pack
             if(i + prefixLen >= 15) out[i + prefixLen - 15] = pack; // 类似于长度为16的kmer
         }
@@ -144,7 +144,8 @@ int IlluminaPrefixPair::palindromeReadsCompare(Reference& rec1, Reference& rec2)
 
     
     // if(pack1.length <= refIndex)
-    if(rec1Len <= 15 || rec2Len <= 15) return std::INT_MAX; // TODO ? why
+    // if(rec1Len <= 15 || rec2Len <= 15) return std::INT_MAX; 
+    if(rec1Len <= 15 || rec2Len <= 15) return 1 << 30; // why?
 
     int count = 0;
     int seedSkip = prefixLen - 16; 
@@ -186,5 +187,5 @@ int IlluminaPrefixPair::palindromeReadsCompare(Reference& rec1, Reference& rec2)
         if((count & 1) == 0 && refIndex + 1 < pack1Len  && refIndex + 1 < pack2Len) refIndex++; // count是偶数移动refIndex 奇数移动testIndex
         else testIndex++;
     }
-    return std::INT_MAX;
+    return 1 << 30;
 }

@@ -10,6 +10,6 @@ void CropTrimmer::processOneRecord(Reference& rec){
 
 void CropTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
-        processOneRec(rec);
+        processOneRecord(rec);
     }
 }

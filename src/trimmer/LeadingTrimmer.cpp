@@ -30,6 +30,6 @@ void LeadingTrimmer::processOneRecord(Reference& rec){
 
 void LeadingTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
-        processOneRec(rec);
+        processOneRecord(rec);
     }
 }

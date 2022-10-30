@@ -3,10 +3,10 @@
 using namespace rabbit::trim;
 
 
-IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int phred_, std::string fastaAdapterFile, int seedMaxMiss_, int minPalindromeLikelihood_, int minSequenceLikelihood_, int minPrefix_ = 1, int palindromeKeepBoth_ = false) : logger(logger_){
+IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int phred_, std::string fastaAdapterFile, int seedMaxMiss_, int minPalindromeLikelihood_, int minSequenceLikelihood_, int minPrefix_, bool  palindromeKeepBoth_) : logger(logger_){
     phred = phred_;
     // adapter file 
-    std::ifstream fastaAdapter(fastaAdapterFile.to_str(), std::ifstream::in);
+    std::ifstream fastaAdapter(fastaAdapterFile.c_str(), std::ifstream::in);
     if(!fastaAdapter.is_open()){
         logger.errorln("Can not open fastaAdapterFile : " + fastaAdapterFile);
         exit(0);
@@ -90,7 +90,7 @@ IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int ph
         forwardSeqMap.erase(forwardName);
         reverseSeqMap.erase(reverseName);
         IlluminaPrefixPair* onePrefixPair = new IlluminaPrefixPair(forwardRec, reverseRec, logger_, phred, minPrefix, seedMaxMiss,  minPalindromeLikelihood,  palindromeKeepBoth);
-        prefixPairs.emplace_back(*onePrefixPair);
+        prefixPairs.emplace_back(onePrefixPair);
    }
    
    // mapClippingSet
@@ -104,14 +104,14 @@ IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int ph
             uniqueSeq.insert(sequence);
             if(sequence.size() < 16){
                 IlluminaClippingSeq* clippingSeq = new IlluminaShortClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
-                forwardSeqs.emplace_back(*clippingSeq);
+                forwardSeqs.emplace_back(clippingSeq);
             }else{
                 if(sequence.size() < 24){
                     IlluminaClippingSeq* clippingSeq = new IlluminaMediumClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
-                    forwardSeqs.emplace_back(*clippingSeq);
+                    forwardSeqs.emplace_back(clippingSeq);
                 }else{
                     IlluminaClippingSeq* clippingSeq = new IlluminaLongClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
-                    forwardSeqs.emplace_back(*clippingSeq);
+                    forwardSeqs.emplace_back(clippingSeq);
                 }
             }
         }
@@ -127,14 +127,14 @@ IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int ph
             uniqueSeq.insert(sequence);
             if(sequence.size() < 16){
                 IlluminaClippingSeq* clippingSeq = new IlluminaShortClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
-                reverseSeqs.emplace_back(*clippingSeq);
+                reverseSeqs.emplace_back(clippingSeq);
             }else{
                 if(sequence.size() < 24){
                     IlluminaClippingSeq* clippingSeq = new IlluminaMediumClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
-                    reverseSeqs.emplace_back(*clippingSeq);
+                    reverseSeqs.emplace_back(clippingSeq);
                 }else{
                     IlluminaClippingSeq* clippingSeq = new IlluminaLongClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
-                    reverseSeqs.emplace_back(*clippingSeq);
+                    reverseSeqs.emplace_back(clippingSeq);
                 }
             }
         }
@@ -149,41 +149,41 @@ IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int ph
             uniqueSeq.insert(sequence);
             if(sequence.size() < 16){
                 IlluminaClippingSeq* clippingSeq = new IlluminaShortClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
-                commonSeqs.emplace_back(*clippingSeq);
+                commonSeqs.emplace_back(clippingSeq);
             }else{
                 if(sequence.size() < 24){
                     IlluminaClippingSeq* clippingSeq = new IlluminaMediumClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
-                    commonSeqs.emplace_back(*clippingSeq);
+                    commonSeqs.emplace_back(clippingSeq);
                 }else{
                     IlluminaClippingSeq* clippingSeq = new IlluminaLongClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
-                    commonSeqs.emplace_back(*clippingSeq);
+                    commonSeqs.emplace_back(clippingSeq);
                 }
             }
         }
    }
 
-   logger.infoln("ILLUMINACLIP: Using " + prefixPairs.size() + " prefix pairs, " + commonSeq.size() + " forward/reverse sequences, " + forwardSeqs.size() +  " forward only sequences, " + reverseSeqs.size() + " reverse only sequences");
+   logger.infoln("ILLUMINACLIP: Using " + std::to_string(prefixPairs.size()) + " prefix pairs, " + std::to_string(commonSeqs.size()) + " forward/reverse sequences, " + std::to_string(forwardSeqs.size()) +  " forward only sequences, " + std::to_string(reverseSeqs.size()) + " reverse only sequences");
 
 }
 // single end
 void IlluminaClippingTrimmer::processOneRecord(Reference& rec){}
-void IlluminaClippingTrimmer::processSingleRecord(Reference& rec, bool isReverse = false){
+void IlluminaClippingTrimmer::processSingleRecord(Reference& rec, bool isReverse){
     int toKeepLength = rec.length; 
     if(!isReverse){
-        for(auto iter = forwardSeqs.begin(); iter != forwardSeqs.end(); iter++){
+        for(auto& iter : forwardSeqs){
             int toKeep = iter -> readsSeqCompare(rec);
             toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
         }
     }
     else{
-        for(auto iter = reverseSeqs.begin(); iter != reverseSeqs.end(); iter++){
+        for(auto& iter : reverseSeqs){
             int toKeep = iter -> readsSeqCompare(rec);
             toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
         }
     }
     
     // common
-    for(auto iter = commonSeqs.begin(); iter != commonSeqs.end(); iter++){
+    for(auto& iter : commonSeqs){
         int toKeep = iter -> readsSeqCompare(rec);
         toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
     }
@@ -198,12 +198,13 @@ void IlluminaClippingTrimmer::processSingleRecord(Reference& rec, bool isReverse
 
 // pair end
 // 返回应该保留的序列的长度
-// 没找到时返回INT_MAX
+// 没找到时返回INT_MAX 1 << 30
 void IlluminaClippingTrimmer::processPairRecord(Reference& rec1, Reference& rec2){
     int toKeepForward = rec1.length;
     int toKeepReverse = rec2.length;
-    for(auto iter = prefixPairs.begin(); iter != prefixPairs.end(); iter++){
-        int toKeep = iter -> palindromeReadsCompare(rec1, rec2);
+    int toKeep;
+    for(auto& iter : prefixPairs){
+        toKeep = iter -> palindromeReadsCompare(rec1, rec2);
         toKeepForward = (toKeep < toKeepForward) ? toKeep : toKeepForward;
         if(palindromeKeepBoth){
             toKeepReverse = (toKeep < toKeepReverse) ? toKeep : toKeepReverse;
@@ -214,24 +215,24 @@ void IlluminaClippingTrimmer::processPairRecord(Reference& rec1, Reference& rec2
 
     assert(toKeepForward >= 0);
     if(toKeepForward > 0){
-        for(auto iter = forwardSeqs.begin(); iter != forwardSeqs.end(); iter++){
-            toKeep = iter -> readsSeqCompare(rec);
+        for(auto& iter : forwardSeqs){
+            toKeep = iter -> readsSeqCompare(rec1);
             toKeepForward = toKeep < toKeepForward ? toKeep : toKeepForward;
         }
-        for(auto iter = commonSeqs.begin(); iter != commonSeqs.end(); iter++){
-            toKeep = iter -> readsSeqCompare(rec);
+        for(auto& iter : commonSeqs){
+            toKeep = iter -> readsSeqCompare(rec1);
             toKeepForward = toKeep < toKeepForward ? toKeep : toKeepForward;
         }
     }
 
     assert(toKeepReverse >= 0);
     if(toKeepReverse > 0){
-        for(auto iter = reverseSeqs.begin(); iter != reverseSeqs.end(); iter++){
-            toKeep = iter -> readsSeqCompare(rec);
+        for(auto& iter : reverseSeqs){
+            toKeep = iter -> readsSeqCompare(rec2);
             toKeepReverse = toKeep < toKeepReverse ? toKeep : toKeepReverse;
         }
-        for(auto iter = commonSeqs.begin(); iter != commonSeqs.end(); iter++){
-            toKeep = iter -> readsSeqCompare(rec);
+        for(auto& iter : commonSeqs){
+            toKeep = iter -> readsSeqCompare(rec2);
             toKeepReverse = toKeep < toKeepReverse ? toKeep : toKeepReverse;
         }
     }

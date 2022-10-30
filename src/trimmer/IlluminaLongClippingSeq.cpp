@@ -2,7 +2,6 @@
 
 using namespace rabbit::trim;
 
-
 IlluminaLongClippingSeq::IlluminaLongClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_) : logger(logger_){
     logger.infoln("Using Long Clipping Sequence: '" + seq_ + "'");
     phred = phred_;
@@ -62,7 +61,7 @@ int IlluminaLongClippingSeq::readsSeqCompare(Reference& rec){
         float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset);
         if(seqLikelihood >= minSequenceLikelihood) return offset;
     }
-    return std::INT_MAX;
+    return 1 << 30;
 }
 
 int IlluminaLongClippingSeq::packCh(char ch){
@@ -91,7 +90,7 @@ uint64* IlluminaLongClippingSeq::packSeqExternal(Reference& rec){
     for(int i = 0; i < len + 15; i++){
         int tmp = 0;
         if(i < seqLen)
-            tmp = packCh(rec.seq.at(cur_headPos + i), false);
+            tmp = packCh(rec.seq.at(cur_headPos + i));
         pack = (pack << 4) | tmp;
         if(i >= 15) out[i - 15] = pack;
     }

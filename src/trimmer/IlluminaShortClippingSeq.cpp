@@ -119,7 +119,8 @@ int IlluminaShortClippingSeq::readsSeqCompare(Reference& rec){
         }
         
     }
-    return std::INT_MAX;
+    // return std::INT_MAX;
+    return 1 << 30;
 }
 
 // 用长度为16的窗口，从序列第一个位置开始，到最后一个位置结束，当剩余序列长度<16时，补充0

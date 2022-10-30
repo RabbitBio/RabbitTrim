@@ -90,9 +90,9 @@ class Buffer {
  private:
   Buffer(const Buffer &) {}
   Buffer &operator=(const Buffer &) { return *this; }
-  void operator=(const Buffer& b){
-    size = b.size; 
-  }
+  // void operator=(const Buffer& b){
+  //   size = b.size; 
+  // }
 
 #if (USE_64BIT_MEMORY)
   uint64 *buffer;

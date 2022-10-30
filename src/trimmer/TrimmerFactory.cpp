@@ -55,7 +55,7 @@ Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, int phred){
     if(trimmerName.compare("HEADCROP")) {
         std::size_t pos = trimmerArgs.find(":");
         int bases = std::stoi(trimmerArgs, nullptr);
-        int maxLength = std::INT_MAX;
+        int maxLength = 1 << 30;
         if(pos != std::string::npos){
             std::string maxLength_str = trimmerArgs.substr(pos+1);
             maxLength = std::stoi(maxLength_str, nullptr);
@@ -65,7 +65,7 @@ Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, int phred){
     if(trimmerName.compare("TAILCROP")) {
         std::size_t pos = trimmerArgs.find(":");
         int bases = std::stoi(trimmerArgs, nullptr);
-        int maxLength = std::INT_MAX;
+        int maxLength = 1 << 30;
         if(pos != std::string::npos){
             std::string maxLength_str = trimmerArgs.substr(pos+1);
             maxLength = std::stoi(maxLength_str, nullptr);
@@ -105,12 +105,12 @@ Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, int phred){
     }
     if(trimmerName.compare("BASECOUNT")) {
         std::size_t pos = trimmerArgs.find(":");
-        std::bases = trimmerArgs.substr(0, pos);
+        std::string bases = trimmerArgs.substr(0, pos);
         if(pos != std::string::npos){
             std::string::size_type sz;
             std::string minCount_str = trimmerArgs.substr(pos + 1);
             int minCount  = std::stoi(minCount_str, &sz);
-            int maxCount = std::INT_MAX;
+            int maxCount = 1 << 30;
             if(sz < minCount_str.size()) maxCount = std::stoi(minCount_str.substr(1), nullptr);
             return new BaseCountTrimmer(bases, minCount, maxCount);
         }

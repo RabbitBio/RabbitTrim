@@ -14,7 +14,7 @@ void HeadCropTrimmer::processOneRecord(Reference& rec){
 
 void HeadCropTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
-        processOneRec(rec);
+        processOneRecord(rec);
     }
 }
         

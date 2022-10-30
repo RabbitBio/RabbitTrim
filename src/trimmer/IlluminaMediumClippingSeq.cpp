@@ -59,7 +59,8 @@ int IlluminaMediumClippingSeq::readsSeqCompare(Reference& rec){
         float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset);
         if(seqLikelihood >= minSequenceLikelihood) return offset;
     }
-    return std::INT_MAX;
+    // return std::INT_MAX;
+    return 1 << 30;
 }
 
 int IlluminaMediumClippingSeq::packCh(char ch){
@@ -87,7 +88,7 @@ uint64* IlluminaMediumClippingSeq::packSeqExternal(Reference& rec){
     for(int i = 0; i < len + 15; i++){
         int tmp = 0;
         if(i < len)
-            tmp = packCh(rec.seq.at(cur_headPos + i), false);
+            tmp = packCh(rec.seq.at(cur_headPos + i));
         pack = (pack << 4) | tmp;
         if(i >= 15) out[i - 15] = pack;
     }

@@ -19,6 +19,6 @@ void AvgQualTrimmer::processOneRecord(Reference& rec){
 
 void AvgQualTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
-        processRecords(rec);
+        processOneRecord(rec);
     }
 }

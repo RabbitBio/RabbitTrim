@@ -9,7 +9,7 @@ double MaximumInformationTrimmer::calcNormalization(double* arr, int arrLength, 
         maxVal = val > maxVal ? val : maxVal;
     }
     
-    return std::LLONG_MAX / (maxVal * margin);
+    return std::numeric_limits<long long>::max() / (maxVal * margin);
 }
 
 int64* MaximumInformationTrimmer::normalize(double* arr, int arrLength, double ratio){
@@ -48,8 +48,8 @@ MaximumInformationTrimmer::MaximumInformationTrimmer(int parLength_, float stric
     
     double normRatio = std::max(calcNormalization(lengthScoreTmp, LONGEST_READ, LONGEST_READ * 2), calcNormalization(qualProbTmp, MAXQUAL+1, LONGEST_READ * 2));
 
-    lengthScore = normalize(lengthScoreTmp, normRatio);
-    qualProb = normalize(qualProbTmp, normRatio);
+    lengthScore = normalize(lengthScoreTmp, LONGEST_READ, normRatio);
+    qualProb = normalize(qualProbTmp, 1 + MAXQUAL, normRatio);
     
 }
 void MaximumInformationTrimmer::processOneRecord(Reference& rec){
@@ -64,7 +64,7 @@ void MaximumInformationTrimmer::processOneRecord(Reference& rec){
 
     // Accumulated quality score
     int64 accumQuality = 0;
-    int64 maxScore = std::LLONG_MIN;
+    int64 maxScore = std::numeric_limits<long long>::min();
 
     int maxScorePosition = 0;
     for(int i = 0; i < len; i++){
@@ -88,6 +88,6 @@ void MaximumInformationTrimmer::processOneRecord(Reference& rec){
 
 void MaximumInformationTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     for(Reference& rec : recs){
-        processOneRec(rec);
+        processOneRecord(rec);
     }
 }
