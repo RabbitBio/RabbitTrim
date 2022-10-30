@@ -25,7 +25,6 @@ namespace rabbit
                 void printSE(std::string filename);
                 void printPE(std::string filename);
 
-                void operator=(const TrimStat& ts);
             private:
                 rabbit::Logger logger;
         };

@@ -18,12 +18,12 @@ TrimStat::TrimStat(rabbit::Logger& logger) : logger(logger){
 
 TrimStat::~TrimStat() = default;
 
-void TrimStat::operator=(const TrimStat& ts){
-  readsInput = ts.readsInput;
-  readsSurvivingBoth = ts.readsSurvivingBoth;
-  readsSurvivingForward = ts.readsSurvivingForward;
-  readsSurvivingReverse = ts.readsSurvivingReverse;
-}
+// void TrimStat::operator=(const TrimStat& ts){
+//   readsInput = ts.readsInput;
+//   readsSurvivingBoth = ts.readsSurvivingBoth;
+//   readsSurvivingForward = ts.readsSurvivingForward;
+//   readsSurvivingReverse = ts.readsSurvivingReverse;
+// }
 
 void TrimStat::merge(std::vector<TrimStat>& trimStatArr){
     for(auto t : trimStatArr){
