@@ -1,7 +1,7 @@
 #ifndef HEAD_CROP_TRIMMER_H
 #define HEAD_CROP_TRIMMER_H
 
-#include "Trimmer.h"
+#include "trimmer/Trimmer.h"
 #include <limits.h>
 namespace rabbit
 {

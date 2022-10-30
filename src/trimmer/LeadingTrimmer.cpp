@@ -1,4 +1,4 @@
-#include "LeadingTrimmer.h"
+#include "trimmer/LeadingTrimmer.h"
 #include <string>
 
 using namespace rabbit::trim;

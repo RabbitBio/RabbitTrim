@@ -1,4 +1,4 @@
-#include "BaseCountTrimmer.h"
+#include "trimmer/BaseCountTrimmer.h"
 
 using namespace rabbit::trim;
 

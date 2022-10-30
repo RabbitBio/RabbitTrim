@@ -1,4 +1,4 @@
-#include "SlidingWindowTrimmer.h"
+#include "trimmer/SlidingWindowTrimmer.h"
 #include <vector>
 
 using namespace rabbit::trim;

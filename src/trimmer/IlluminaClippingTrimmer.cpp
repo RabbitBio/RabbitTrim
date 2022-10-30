@@ -1,4 +1,4 @@
-#include "IlluminaClippingTrimmer.h"
+#include "trimmer/IlluminaClippingTrimmer.h"
 
 using namespace rabbit::trim;
 

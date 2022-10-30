@@ -1,6 +1,6 @@
 #ifndef TRIMMER_H
 #define TRIMMER_H
-#include "../io/Reference.h"
+#include "Reference.h"
 #include <vector>
 
 namespace rabbit{

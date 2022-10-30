@@ -1,7 +1,7 @@
 #ifndef TO_PHREAD_64_TRIMMER_H
 #define TO_PHREAD_64_TRIMMER_H
 
-#include "Trimmer.h"
+#include "trimmer/Trimmer.h"
 
 namespace rabbit
 {

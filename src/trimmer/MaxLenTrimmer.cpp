@@ -1,4 +1,4 @@
-#include "MaxLenTrimmer.h"
+#include "trimmer/MaxLenTrimmer.h"
 
 using namespace rabbit::trim;
 

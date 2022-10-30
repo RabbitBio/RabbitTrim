@@ -1,4 +1,4 @@
-#include "AvgQualTrimmer.h"
+#include "trimmer/AvgQualTrimmer.h"
 
 using namespace rabbit::trim;
 

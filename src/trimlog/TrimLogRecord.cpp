@@ -1,4 +1,4 @@
-#include "TrimLogRecord.h"
+#include "trimlog/TrimLogRecord.h"
 
 using namespace rabbit;
 

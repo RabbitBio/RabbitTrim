@@ -1,4 +1,4 @@
-#include "HeadCropTrimmer.h"
+#include "trimmer/HeadCropTrimmer.h"
 
 using namespace rabbit::trim;
 

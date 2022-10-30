@@ -1,7 +1,7 @@
 #ifndef TO_PHRED_33_TRIMMER_H
 #define TO_PHRED_33_TRIMMER_H
 
-#include "Trimmer.h"
+#include "trimmer/Trimmer.h"
 namespace rabbit
 {
     namespace trim

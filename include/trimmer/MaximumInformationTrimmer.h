@@ -1,7 +1,7 @@
 #ifndef MAXIMUM_INFORMATION_TRIMMER_H
 #define MAXIMUM_INFORMATION_TRIMMER_H
 
-#include "Trimmer.h"
+#include "trimmer/Trimmer.h"
 #include <cmath>
 #include <limits>
 

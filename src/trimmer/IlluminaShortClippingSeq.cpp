@@ -1,4 +1,4 @@
-#include "IlluminaShortClippingSeq.h"
+#include "trimmer/IlluminaShortClippingSeq.h"
 
 using namespace rabbit::trim;
 

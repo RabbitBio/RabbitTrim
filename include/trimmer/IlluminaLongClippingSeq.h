@@ -1,8 +1,8 @@
 #ifndef ILLUMINA_LONG_CLIPPING_SEQ_H
 #define ILLUMINA_LONG_CLIPPING_SEQ_H
 
-#include "IlluminaClippingSeq.h"
-#include "../Logger.h"
+#include "trimmer/IlluminaClippingSeq.h"
+#include "Logger.h"
 #include <string>
 #include <assert.h>
 #include <set>

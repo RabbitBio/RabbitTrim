@@ -1,13 +1,13 @@
 #ifndef ILLUMINA_CLIPPING_TRIMMER_H
 #define ILLUMINA_CLIPPING_TRIMMER_H
 
-#include "Trimmer.h"
+#include "trimmer/Trimmer.h"
 #include "Logger.h"
-#include "IlluminaPrefixPair.h"
-#include "IlluminaClippingSeq.h"
-#include "IlluminaShortClippingSeq.h"
-#include "IlluminaMediumClippingSeq.h"
-#include "IlluminaLongClippingSeq.h"
+#include "trimmer/IlluminaPrefixPair.h"
+#include "trimmer/IlluminaClippingSeq.h"
+#include "trimmer/IlluminaShortClippingSeq.h"
+#include "trimmer/IlluminaMediumClippingSeq.h"
+#include "trimmer/IlluminaLongClippingSeq.h"
 #include <fstream>
 #include <vector>
 #include <map>

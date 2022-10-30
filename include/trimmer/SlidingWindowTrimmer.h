@@ -1,7 +1,7 @@
 #ifndef SLIDING_WINDOW_TRIMMER_H
 #define SLIDING_WINDOW_TRIMMER_H
 
-#include "Trimmer.h"
+#include "trimmer/Trimmer.h"
 
 namespace rabbit
 {

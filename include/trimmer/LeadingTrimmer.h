@@ -1,7 +1,7 @@
 #ifndef LEADING_TRIMMER_H
 #define LEADING_TRIMMER_H
-#include "Trimmer.h"
-#include "../io/Reference.h"
+#include "trimmer/Trimmer.h"
+#include "Reference.h"
 
 namespace rabbit
 {

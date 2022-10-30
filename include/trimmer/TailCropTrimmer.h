@@ -1,7 +1,7 @@
 #ifndef TAIL_CROP_TRIMMER_H
 #define TAIL_CROP_TRIMMER_H
 
-#include "Trimmer.h"
+#include "trimmer/Trimmer.h"
 #include <limits.h>
 
 namespace rabbit{

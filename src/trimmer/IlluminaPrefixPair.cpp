@@ -1,4 +1,4 @@
-#include "IlluminaPrefixPair.h"
+#include "trimmer/IlluminaPrefixPair.h"
 
 using namespace rabbit::trim;
 

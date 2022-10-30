@@ -1,7 +1,7 @@
 #ifndef BASE_COUNT_TRIMMER_H
 #define BASE_COUNT_TRIMMER_H
 
-#include "Trimmer.h"
+#include "trimmer/Trimmer.h"
 #include <string>
 #include <climits>
 #include <assert.h> 

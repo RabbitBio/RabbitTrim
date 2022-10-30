@@ -1,4 +1,4 @@
-#include "ToPhred33Trimmer.h"
+#include "trimmer/ToPhred33Trimmer.h"
 
 using namespace rabbit::trim;
 

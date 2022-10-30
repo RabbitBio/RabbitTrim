@@ -1,7 +1,7 @@
 #ifndef TRAILING_TRIMMER_H
 #define TRAILING_TRIMMER_H
 
-#include "Trimmer.h"
+#include "trimmer/Trimmer.h"
 
 namespace rabbit
 {

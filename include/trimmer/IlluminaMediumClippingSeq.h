@@ -1,7 +1,7 @@
 #ifndef ILLUMINA_MEDIUM_CLIPPING_SEQ
 #define ILLUMINA_MEDIUM_CLIPPING_SEQ
-#include "IlluminaClippingSeq.h"
-#include "../Logger.h"
+#include "trimmer/IlluminaClippingSeq.h"
+#include "Logger.h"
 #include <string>
 #include <set>
 #include <limits.h>

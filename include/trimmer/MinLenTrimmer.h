@@ -1,7 +1,7 @@
 #ifndef MIN_LEN_TRIMMER_H
 #define MIN_LEN_TRIMMER_H
 
-#include "Trimmer.h"
+#include "trimmer/Trimmer.h"
 
 namespace rabbit
 {

@@ -1,4 +1,4 @@
-#include "TrimStat.h"
+#include "trimlog/TrimStat.h"
 using namespace rabbit::trim;
 
 TrimStat::TrimStat(){

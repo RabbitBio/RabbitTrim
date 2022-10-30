@@ -1,4 +1,4 @@
-#include "MaximumInformationTrimmer.h"
+#include "trimmer/MaximumInformationTrimmer.h"
 
 using namespace rabbit::trim;
 

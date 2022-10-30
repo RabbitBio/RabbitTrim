@@ -1,4 +1,4 @@
-#include "TrimmerFactory.h"
+#include "trimmer/TrimmerFactory.h"
 
 using namespace rabbit::trim;
 
