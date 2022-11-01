@@ -180,7 +180,7 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
 
         
         int qual1 = offset1 < prefixLen ? 100 : (rec1_qual[offset1 - prefixLen] - phred);
-        int qual2 = offset2 < prefixLen ? 100 : (rec2.qual[offset2 - prefixLen] - phred);
+        int qual2 = offset2 < prefixLen ? 100 : (rec2_qual[offset2 - prefixLen] - phred);
         int minQual = qual1 < qual2 ? qual1 : qual2;
         
         float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
@@ -262,8 +262,8 @@ int IlluminaPrefixPair::palindromeReadsCompare(neoReference& rec1, neoReference&
     int testIndex = 0;
     int refIndex = prefixLen; // 参考序列从不包含prefix的第一个kmer开始
 
-    int rec1Len = rec1.length;
-    int rec2Len = rec2.length;
+    int rec1Len = rec1.lseq;
+    int rec2Len = rec2.lseq;
     
     int pack1Len = rec1Len + prefixLen - 15;
     int pack2Len = rec2Len + prefixLen - 15;

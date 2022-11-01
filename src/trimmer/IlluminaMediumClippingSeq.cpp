@@ -62,7 +62,7 @@ int IlluminaMediumClippingSeq::readsSeqCompare(Reference& rec){
     // return std::INT_MAX;
     return 1 << 30;
 }
-int IlluminaMediumClippingSeq::readsSeqCompare(noeReference& rec){
+int IlluminaMediumClippingSeq::readsSeqCompare(neoReference& rec){
     std::set<int> offsetSet;
     // packSeqExternal(rec)
     uint64* packRec = packSeqExternal(rec);
@@ -130,7 +130,7 @@ uint64* IlluminaMediumClippingSeq::packSeqExternal(Reference& rec){
     }
     return out;
 }
-uint64* IlluminaMediumClippingSeq::packSeqExternal(Reference& rec){ 
+uint64* IlluminaMediumClippingSeq::packSeqExternal(neoReference& rec){ 
     int len = rec.lseq;
     char* rec_seq = (char*) (rec.base + rec.pseq);
     uint64* out = new uint64[len];

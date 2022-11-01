@@ -18,6 +18,9 @@ namespace rabbit
                     ~IlluminaLongClippingSeq();
                     
                     int packCh(char ch);
+                    uint64 calcSingleMask(int length);
+                    float calculateMaximumRange(float* vals, int valsLen);
+
                     uint64* packSeqExternal(Reference& rec);
                     float calculateDifferenceQuality(Reference& rec, int overlap, int recOffset);
                     int readsSeqCompare(Reference& rec);
@@ -26,11 +29,6 @@ namespace rabbit
                     float calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset);
                     int readsSeqCompare(neoReference& rec);
 
-                    uint64 calcSingleMask(int length);
-                    float calculateMaximumRange(float* vals, int valsLen);
-
-                    
-                    
                 private:
                     rabbit::Logger logger;
                     int phred;

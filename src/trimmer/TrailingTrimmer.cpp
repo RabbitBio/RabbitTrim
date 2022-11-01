@@ -27,3 +27,30 @@ void TrailingTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, 
         processOneRecord(rec);
     }
 }
+
+void TrailingTrimmer::processOneRecord(neoReference& rec){
+    int len = rec.lseq;
+    char* rec_qual = (char*)(rec.base + rec.pqual);
+    char* rec_seq = (char*)(rec.base + rec.pseq);
+    for(int i = len - 1; i >= 0; i--){
+        int qual_val = rec_qual[i] - phred;
+        if(rec_seq[i] != 'N' && qual_val >= qual){
+            // rec.seq = seq.substr(0, i+1);
+            // rec.quality = quality.substr(0, i+1);
+            rec.lseq = i + 1;
+            rec.lqual = i + 1;
+            return;
+        }
+    }
+    rec.lseq = 0;
+    rec.lqual = 0;
+    // rec.seq = "";
+    // rec.quality = "";
+}
+
+
+void TrailingTrimmer::processRecords(std::vector<neoReference>& recs, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}

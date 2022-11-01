@@ -109,7 +109,8 @@ void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
   rabbit::int64 chunk_id;
   rabbit::fq::FastqChunk* fqChunk = new rabbit::fq::FastqChunk;
   while(dq.Pop(chunk_id,fqChunk->chunk)){
-    std::vector<Reference> data;
+    // std::vector<Reference> data;
+    std::vector<neoReference> data;
     int loaded  = rabbit::fq::chunkFormat(fqChunk->chunk, data, true);
     fastqPool->Release(fqChunk->chunk);
 

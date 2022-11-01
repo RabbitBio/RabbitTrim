@@ -2,6 +2,7 @@
 #define TO_PHRED_33_TRIMMER_H
 
 #include "trimmer/Trimmer.h"
+#include <cassert>
 namespace rabbit
 {
     namespace trim

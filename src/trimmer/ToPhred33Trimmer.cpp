@@ -21,3 +21,20 @@ void ToPhred33Trimmer::processRecords(std::vector<Reference>& recs, bool isPair,
         processOneRecord(rec);
     }
 }
+
+void ToPhred33Trimmer::processOneRecord(neoReference& rec){
+    assert(phred != 0);
+    if(phred == 33) return;
+    int len = rec.lseq;
+    char* rec_qual = (char*)(rec.base + rec.pqual);
+    char* new_quality = new char[len + 1];
+    for(int i = 0; i < len; i++){
+        rec_qual[i] = (char)(rec_qual[i] - 31);
+    }
+}
+
+void ToPhred33Trimmer::processRecords(std::vector<neoReference>& recs, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}

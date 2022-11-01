@@ -174,7 +174,7 @@ uint64* IlluminaShortClippingSeq::packSeqExternal(Reference& rec){
     uint64 pack = 0ULL;
 
     for(int i = 0; i < len + 15; i++){
-        int tmp = 0;
+        uint64 tmp = 0;
         if(i < len)
             tmp = packCh(rec.seq.at(cur_headPos + i), false);
         pack = (pack << 4) | tmp;

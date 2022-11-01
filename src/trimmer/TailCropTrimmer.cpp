@@ -15,3 +15,18 @@ void TailCropTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, 
         processOneRecord(rec);
     }
 }
+
+void TailCropTrimmer::processOneRecord(neoReference& rec){
+    int len = rec.lseq;
+    int toTrim;
+    toTrim = len - bases > maxLength ? len - maxLength : bases;
+    toTrim = len < toTrim ? len : toTrim;
+    rec.lseq = len - toTrim;
+    rec.lqual = rec.lseq; 
+}
+
+void TailCropTrimmer::processRecords(std::vector<neoReference>& recs, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}

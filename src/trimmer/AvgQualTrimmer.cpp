@@ -25,16 +25,16 @@ void AvgQualTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, b
 
 
 void AvgQualTrimmer::processOneRecord(neoReference& rec){
-    int len = rec.lqual;
-    char* seq = (char*)(rec.base +  rec.pseq);
-    char* qual = (char*)(rec.base + rec.pqual);
+    int len = rec.lseq;
+    char* rec_seq = (char*)(rec.base +  rec.pseq);
+    char* rec_qual = (char*)(rec.base + rec.pqual);
     
     int total = 0;
     for(int i = 0; i < len; i++){
-        int qual_val = seq[i] == 'N' ? 0 : qual[i] - phred;
+        int qual_val = (rec_seq[i] == 'N' ? 0 : rec_qual[i] - phred);
         total += qual_val;
     }
-    rec.lseq = total < qual * len ? 0 : len;
+    rec.lseq = ((total < qual * len) ? 0 : len);
     rec.lqual = rec.lseq;
 
 }

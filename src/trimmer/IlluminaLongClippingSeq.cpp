@@ -137,7 +137,7 @@ uint64* IlluminaLongClippingSeq::packSeqExternal(neoReference& rec){
     for(int i = 0; i < len + 15; i++){
         uint64 tmp = 0;
         if(i < len)
-            tmp = packCh(rec_seq[i]));
+            tmp = packCh(rec_seq[i]);
         pack = (pack << 4) | tmp;
         if(i >= 15) out[i - 15] = pack;
     }
@@ -180,8 +180,8 @@ float IlluminaLongClippingSeq::calculateDifferenceQuality(Reference& rec, int ov
 float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset){
     // getQualityAsInteger
     int len = rec.lseq;
-    char* rec_seq = (char*)(rac.base + rec.pseq);
-    char* qual = (char*)(rec.base + rec.pqual);
+    char* rec_seq = (char*)(rec.base + rec.pseq);
+    char* rec_qual = (char*)(rec.base + rec.pqual);
 
     // Location to start comparison
     int recPos = recOffset > 0 ? recOffset : 0;
@@ -192,7 +192,7 @@ float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int
         char ch1 = rec_seq[recPos];
         char ch2 = seq[clipPos];
         
-        int qual_val = qual[recPos] - phred;
+        int qual_val = rec_qual[recPos] - phred;
         float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10.0f;
         likelihood[i] = ((ch1 == 'N' || ch2 == 'N') ? 0 : s);
         recPos++;

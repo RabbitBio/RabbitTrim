@@ -2,6 +2,7 @@
 #define TO_PHREAD_64_TRIMMER_H
 
 #include "trimmer/Trimmer.h"
+#include <cassert>
 
 namespace rabbit
 {

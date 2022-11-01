@@ -18,12 +18,14 @@ namespace rabbit
                     ~IlluminaShortClippingSeq();
                     
                     uint64* packSeqExternal(neoReference& rec);
-                    uint64* packSeqExternal(Reference& rec);
+                    float calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset);
+                    int readsSeqCompare(neoReference& rec);
+
                     int packCh(char ch, bool reverse);
                     uint64 calcSingleMask(int length);
                     float calculateMaximumRange(float* vals, int valsLen);
 
-                    float calculateDifferenceQuality(Reference& rec, int overlap, int recOffset);
+                    uint64* packSeqExternal(Reference& rec);
                     float calculateDifferenceQuality(Reference& rec, int overlap, int recOffset);
                     int readsSeqCompare(Reference& rec);
                 private:

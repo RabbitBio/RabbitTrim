@@ -6,7 +6,7 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   int consumer_num = rp.threads - 3;
   rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(256,MEM_PER_CHUNK);
   rabbit::trim::FastqDataPairChunkQueue queue1(256,1);
-  rabbit::trim::WriterDadaQueue queue2(256, consumer_num);
+  // rabbit::trim::WriterDadaQueue queue2(256, consumer_num);
 
 
   std::vector<rabbit::trim::TrimStat> statsArr(consumer_num);
@@ -112,13 +112,15 @@ int rabbit::trim::producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
 
 
 // comusmer task
-void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterDataQueue& dp2, rabbit::trim::TrimStat& rstats,
+// void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterDataQueue& dp2, rabbit::trim::TrimStat& rstats,
+void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, rabbit::trim::TrimStat& rstats,
     std::vector<rabbit::trim::Trimmer*>& trimmers)
 {
   rabbit::int64 chunk_id;
   rabbit::fq::FastqPairChunk* fqPairChunk = new rabbit::fq::FastqPairChunk;
   while(dq.Pop(chunk_id,fqPairChunk->chunk)){
-    std::vector<Reference> data;
+    // std::vector<Reference> data;
+    std::vector<neoReference> data;
     data.reserve(2e4);
     int loaded  = rabbit::fq::chunkFormat(fqPairChunk->chunk->right_part, data, true);
     int loaded2 = rabbit::fq::chunkFormat(fqPairChunk->chunk->left_part , data, true);
@@ -128,7 +130,7 @@ void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
     for(auto trimmer : trimmers){
       trimmer -> processRecords(data, true, false);
     }
-    dp2.Push(data);
+    // dp2.Push(data);
     rstats.readsInput += loaded;
   }
 }

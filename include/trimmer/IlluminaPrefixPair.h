@@ -21,6 +21,7 @@ namespace rabbit
                     
                     uint64 packCh(char ch, bool reverse);
                     uint64* packSeqInternal(std::string seq, bool reverse);
+
                     uint64* packSeqInternal(neoReference& rec, bool reverse);
                     float calculatePalindromeDifferenceQuality(neoReference& rec1, neoReference& rec2, int overlap, int skip1, int skip2);
                     int palindromeReadsCompare(neoReference& rec1, neoReference& rec2);

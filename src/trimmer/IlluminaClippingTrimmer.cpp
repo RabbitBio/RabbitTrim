@@ -175,6 +175,7 @@ IlluminaClippingTrimmer::~IlluminaClippingTrimmer(){
 }
 // single end
 void IlluminaClippingTrimmer::processOneRecord(Reference& rec){}
+void IlluminaClippingTrimmer::processOneRecord(neoReference& rec){}
 void IlluminaClippingTrimmer::processSingleRecord(Reference& rec, bool isReverse){
     int toKeepLength = rec.length; 
     if(!isReverse){
@@ -201,6 +202,34 @@ void IlluminaClippingTrimmer::processSingleRecord(Reference& rec, bool isReverse
     }else{
         rec.length = 0; // when offset less than zero
     }
+}
+void IlluminaClippingTrimmer::processSingleRecord(neoReference& rec, bool isReverse){
+    int toKeepLength = rec.lseq; 
+    if(!isReverse){
+        for(auto& iter : forwardSeqs){
+            int toKeep = iter -> readsSeqCompare(rec);
+            toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
+        }
+    }
+    else{
+        for(auto& iter : reverseSeqs){
+            int toKeep = iter -> readsSeqCompare(rec);
+            toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
+        }
+    }
+    
+    // common
+    for(auto& iter : commonSeqs){
+        int toKeep = iter -> readsSeqCompare(rec);
+        toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
+    }
+
+    if(toKeepLength > 0){
+        rec.lseq = toKeepLength;
+    }else{
+        rec.lseq = 0; // when offset less than zero
+    }
+    rec.lqual = rec.lseq;
 }
 
 
@@ -259,6 +288,59 @@ void IlluminaClippingTrimmer::processPairRecord(Reference& rec1, Reference& rec2
     
 }
 
+void IlluminaClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& rec2){
+    int toKeepForward = rec1.lseq;
+    int toKeepReverse = rec2.lseq;
+    int toKeep;
+    for(auto& iter : prefixPairs){
+        toKeep = iter -> palindromeReadsCompare(rec1, rec2);
+        toKeepForward = (toKeep < toKeepForward) ? toKeep : toKeepForward;
+        if(palindromeKeepBoth){
+            toKeepReverse = (toKeep < toKeepReverse) ? toKeep : toKeepReverse;
+        }else{
+            toKeepReverse = 0;
+        }
+    }
+
+    assert(toKeepForward >= 0);
+    if(toKeepForward > 0){
+        for(auto& iter : forwardSeqs){
+            toKeep = iter -> readsSeqCompare(rec1);
+            toKeepForward = toKeep < toKeepForward ? toKeep : toKeepForward;
+        }
+        for(auto& iter : commonSeqs){
+            toKeep = iter -> readsSeqCompare(rec1);
+            toKeepForward = toKeep < toKeepForward ? toKeep : toKeepForward;
+        }
+    }
+
+    assert(toKeepReverse >= 0);
+    if(toKeepReverse > 0){
+        for(auto& iter : reverseSeqs){
+            toKeep = iter -> readsSeqCompare(rec2);
+            toKeepReverse = toKeep < toKeepReverse ? toKeep : toKeepReverse;
+        }
+        for(auto& iter : commonSeqs){
+            toKeep = iter -> readsSeqCompare(rec2);
+            toKeepReverse = toKeep < toKeepReverse ? toKeep : toKeepReverse;
+        }
+    }
+
+    if(toKeepForward > 0){
+        rec1.lseq = toKeepForward;
+    }else{
+        rec1.lseq = 0;
+    }
+    
+    if(toKeepReverse > 0){
+        rec2.lseq = toKeepReverse;
+    }else{
+        rec2.lseq = 0;
+    }
+    rec1.lqual = rec1.lseq;
+    rec2.lqual = rec2.lseq;
+    
+}
 
 void IlluminaClippingTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     if(isPair){
@@ -272,6 +354,24 @@ void IlluminaClippingTrimmer::processRecords(std::vector<Reference>& recs, bool 
     }
     else{
         for(Reference& rec : recs){
+            processSingleRecord(rec, isReverse);
+        }
+        
+    }
+}
+
+void IlluminaClippingTrimmer::processRecords(std::vector<neoReference>& recs, bool isPair, bool isReverse){
+    if(isPair){
+        int n = recs.size() / 2;
+        ASSERT(n * 2 == recs.size());
+        for(int i = 0; i < n; i++){
+            neoReference& rec1 = recs[i];
+            neoReference& rec2 = recs[i + n];
+            processPairRecord(rec1, rec2);
+        }
+    }
+    else{
+        for(neoReference& rec : recs){
             processSingleRecord(rec, isReverse);
         }
         

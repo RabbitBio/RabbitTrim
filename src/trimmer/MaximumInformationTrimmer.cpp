@@ -123,7 +123,8 @@ void MaximumInformationTrimmer::processOneRecord(neoReference& rec){
         
     }
     // maxScore == 0 ? // TODO 
-    rec.length = maxScorePosition + 1;
+    rec.lseq = maxScorePosition + 1;
+    rec.lqual = rec.lseq;
     
 }
 

@@ -14,8 +14,8 @@ option(USE_OMP "Specify whether to use openMP" OFF)
 
 # cmake build type
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")
-  # set(CMAKE_BUILD_TYPE "release")
-    set(CMAKE_BUILD_TYPE "debug")
+    set(CMAKE_BUILD_TYPE "release")
+    # set(CMAKE_BUILD_TYPE "debug")
 endif("${CMAKE_BUILD_TYPE}" STREQUAL "")
 
 if("${CMAKE_BUILD_TYPE}" STREQUAL "release")
