@@ -30,6 +30,8 @@ namespace rabbit
 
                     void processOneRecord(Reference& rec);
                     void processRecords(std::vector<Reference>& recs, bool isPair = false, bool isReverse = false);
+                    void processOneRecord(neoReference& rec);
+                    void processRecords(std::vector<neoReference>& recs, bool isPair = false, bool isReverse = false);
                 private:
                     int minCount;
                     int maxCount;

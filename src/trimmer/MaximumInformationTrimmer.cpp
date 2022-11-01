@@ -91,3 +91,44 @@ void MaximumInformationTrimmer::processRecords(std::vector<Reference>& recs, boo
         processOneRecord(rec);
     }
 }
+
+void MaximumInformationTrimmer::processOneRecord(neoReference& rec){
+    int len = rec.lseq;
+    char* rec_seq = (char*)(rec.base + rec.pseq);
+    char* rec_qual = (char*)(rec.base + rec.pqual);
+    // compute quality 
+    int* quals = new int[len];
+    for(int i = 0; i < len; i++) {
+        int qual_val = rec_seq[i] == 'N' ? 0 : rec_qual[i] - phred;
+        quals[i] = qual_val;
+    }
+
+    // Accumulated quality score
+    int64 accumQuality = 0;
+    int64 maxScore = std::numeric_limits<long long>::min();
+
+    int maxScorePosition = 0;
+    for(int i = 0; i < len; i++){
+        int q = quals[i];
+        q = q < 0 ? 0 : q;
+        q = q > MAXQUAL ? MAXQUAL : q;
+        accumQuality += qualProb[q];
+        
+        int64 score = lengthScore[i] + accumQuality;
+        // maxScore = score > maxScore ? score : maxScore;
+        if(score >= maxScore){
+            maxScore = score;
+            maxScorePosition = i; 
+        }
+        
+    }
+    // maxScore == 0 ? // TODO 
+    rec.length = maxScorePosition + 1;
+    
+}
+
+void MaximumInformationTrimmer::processRecords(std::vector<neoReference>& recs, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}

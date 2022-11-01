@@ -19,10 +19,15 @@ namespace rabbit
                     
                     int packCh(char ch);
                     uint64* packSeqExternal(Reference& rec);
-                    uint64 calcSingleMask(int length);
                     float calculateDifferenceQuality(Reference& rec, int overlap, int recOffset);
-                    float calculateMaximumRange(float* vals, int valsLen);
                     int readsSeqCompare(Reference& rec);
+
+                    uint64* packSeqExternal(neoReference& rec);
+                    float calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset);
+                    int readsSeqCompare(neoReference& rec);
+
+                    uint64 calcSingleMask(int length);
+                    float calculateMaximumRange(float* vals, int valsLen);
 
                     
                     

@@ -64,6 +64,38 @@ int IlluminaLongClippingSeq::readsSeqCompare(Reference& rec){
     return 1 << 30;
 }
 
+int IlluminaLongClippingSeq::readsSeqCompare(neoReference& rec){
+    std::set<int> offsetSet;
+    uint64* packRec = packSeqExternal(rec);
+    uint64* packClip = pack;
+
+    // 根据minSequenceOverlap计算最大比较次数
+    int packRecMax = rec.lseq - minSequenceOverlap;
+    int packClipMax = (seqLen - 15 + INTERLEAVE - 1) / INTERLEAVE; // pack.length
+    
+    for(int i = 0; i < packRecMax; i++){
+        uint64 comboMask = calcSingleMask(rec.lseq - i);
+        for(int j = 0; j < packClipMax; j++){
+            int diff = __builtin_popcountll((packRec[i] ^ packClip[j]) & comboMask);
+            if(diff <= seedMax){
+                offsetSet.emplace(i - j * INTERLEAVE);
+            }
+        }
+    }
+    
+    for(auto iter = offsetSet.begin(); iter != offsetSet.end(); iter++){
+        int offset = *iter;
+        int recCompLength = offset > 0 ? rec.lseq - offset : rec.lseq;
+        int clipCompLength = offset < 0 ? seqLen + offset : seqLen;
+        int compLength = recCompLength < clipCompLength ? recCompLength : clipCompLength;
+        
+        assert(compLength > minSequenceOverlap);
+        float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset);
+        if(seqLikelihood >= minSequenceLikelihood) return offset;
+    }
+    return 1 << 30;
+}
+
 int IlluminaLongClippingSeq::packCh(char ch){
     switch (ch)
     {
@@ -88,9 +120,24 @@ uint64* IlluminaLongClippingSeq::packSeqExternal(Reference& rec){
     uint64 pack = 0ULL;
 
     for(int i = 0; i < len + 15; i++){
-        int tmp = 0;
-        if(i < seqLen)
+        uint64 tmp = 0;
+        if(i < len)
             tmp = packCh(rec.seq.at(cur_headPos + i));
+        pack = (pack << 4) | tmp;
+        if(i >= 15) out[i - 15] = pack;
+    }
+    return out;
+}
+uint64* IlluminaLongClippingSeq::packSeqExternal(neoReference& rec){ 
+    int len = rec.lseq;
+    char* rec_seq = (char*)(rec.base + rec.pseq);
+    uint64* out = new uint64[len];
+    uint64 pack = 0ULL;
+
+    for(int i = 0; i < len + 15; i++){
+        uint64 tmp = 0;
+        if(i < len)
+            tmp = packCh(rec_seq[i]));
         pack = (pack << 4) | tmp;
         if(i >= 15) out[i - 15] = pack;
     }
@@ -121,6 +168,31 @@ float IlluminaLongClippingSeq::calculateDifferenceQuality(Reference& rec, int ov
         char ch2 = seq.at(clipPos);
         
         int qual_val = rec.quality.at(cur_headPos + recPos) - phred;
+        float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10.0f;
+        likelihood[i] = ((ch1 == 'N' || ch2 == 'N') ? 0 : s);
+        recPos++;
+        clipPos++;
+    }
+    // calculateMaximumRange()
+    float l = calculateMaximumRange(likelihood, overlap);
+    return l;
+}
+float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset){
+    // getQualityAsInteger
+    int len = rec.lseq;
+    char* rec_seq = (char*)(rac.base + rec.pseq);
+    char* qual = (char*)(rec.base + rec.pqual);
+
+    // Location to start comparison
+    int recPos = recOffset > 0 ? recOffset : 0;
+    int clipPos = recOffset < 0 ? -recOffset : 0;
+
+    float* likelihood = new float[overlap];
+    for(int i = 0; i < overlap; i++){
+        char ch1 = rec_seq[recPos];
+        char ch2 = seq[clipPos];
+        
+        int qual_val = qual[recPos] - phred;
         float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10.0f;
         likelihood[i] = ((ch1 == 'N' || ch2 == 'N') ? 0 : s);
         recPos++;

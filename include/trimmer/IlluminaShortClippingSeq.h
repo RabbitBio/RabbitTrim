@@ -17,11 +17,13 @@ namespace rabbit
                     IlluminaShortClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_);
                     ~IlluminaShortClippingSeq();
                     
+                    uint64* packSeqExternal(neoReference& rec);
                     uint64* packSeqExternal(Reference& rec);
                     int packCh(char ch, bool reverse);
                     uint64 calcSingleMask(int length);
                     float calculateMaximumRange(float* vals, int valsLen);
 
+                    float calculateDifferenceQuality(Reference& rec, int overlap, int recOffset);
                     float calculateDifferenceQuality(Reference& rec, int overlap, int recOffset);
                     int readsSeqCompare(Reference& rec);
                 private:

@@ -19,3 +19,22 @@ void BaseCountTrimmer::processRecords(std::vector<Reference>& recs, bool isPair,
         processOneRecord(rec);
     }
 }
+
+void BaseCountTrimmer::processOneRecord(neoReference& rec){
+    int count = 0;
+    int len = rec.lseq;
+    char* seq = (char*)(rec.base + rec.pseq);
+    for(int i = 0; i < len; i++){
+        int pos = seq[i] - 'A';
+        assert(pos >= 0);
+        if((1 << pos) & baseSet) count++; 
+    }
+    if(count < minCount || count > maxCount) rec.lseq = 0;
+    rec.lqual = rec.lseq;
+}
+
+void BaseCountTrimmer::processRecords(std::vector<neoReference>& recs, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}

@@ -12,6 +12,8 @@ namespace rabbit
                 public:
                     virtual int readsSeqCompare(Reference& rec) = 0;
                     virtual float calculateDifferenceQuality(Reference& rec, int overlap, int recOffset) = 0;
+                    virtual int readsSeqCompare(neoReference& rec) = 0;
+                    virtual float calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset) = 0;
                     // virtual float calculateMaximumRange(float* vals, int valsLen) = 0;
                     ~IlluminaClippingSeq() = default;
                 protected:

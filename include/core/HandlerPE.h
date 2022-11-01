@@ -16,15 +16,17 @@
 #include "FastxChunk.h"
 #include "trimlog/TrimStat.h"
 #include "trimmer/TrimmerFactory.h"
+#include "Reference.h"
 
 namespace rabbit
 {
     namespace trim
     {
         typedef rabbit::core::TDataQueue<rabbit::fq::FastqDataPairChunk> FastqDataPairChunkQueue;
+        typedef rabbit::core::TDataQueue<std::vector<Reference>> WriterDataQueue;
         int  process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &logger);
         int  producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, FastqDataPairChunkQueue& dq);
-        void consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, rabbit::trim::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers);
+        void consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterDataQueue& dp2, rabbit::trim::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers);
     } // namespace trim
     
 } // namespace rabbit

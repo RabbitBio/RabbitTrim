@@ -13,3 +13,16 @@ void CropTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool
         processOneRecord(rec);
     }
 }
+
+void CropTrimmer::processOneRecord(neoReference& rec){
+    int cur_len = rec.lseq;
+    cur_len = cur_len > len ? len : cur_len;
+    rec.lseq = cur_len;
+    rec.lqual = rec.lqual;
+}
+
+void CropTrimmer::processRecords(std::vector<neoReference>& recs, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}
