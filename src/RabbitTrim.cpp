@@ -29,8 +29,8 @@ int main( int argc, char **argv) {
     int compressLevel = 4;
 
     // auto trimm_option_m = trimmomatic->add_option("-m,--mode", mode, "specify mode of data handled: single-end(SE) or pair-end data(PE)");
-    auto trimm_flag_pe = trimmomatic->add_flag("--PE,!--no-PE", isPE, "specify whether to be pair end data ");
-    auto trimm_flag_se = trimmomatic->add_flag("--SE,!--no-SE", isSE, "specify whether to be single end data");
+    auto trimm_flag_pe = trimmomatic->add_flag("-P,--PE,!--no-PE", isPE, "specify whether to be pair end data ");
+    auto trimm_flag_se = trimmomatic->add_flag("-S,--SE,!--no-SE", isSE, "specify whether to be single end data");
     auto trimm_option_t = trimmomatic->add_option("-t,--threads", threads, "specify the number of threads");
     auto trimm_option_p = trimmomatic->add_option("-p,--phred", phred, "specify the baseline of the phred score");
     auto trimm_option_f = trimmomatic->add_option("-f,--forward", forwardFiles, "specify the path to the forward read file"); 
@@ -50,9 +50,9 @@ int main( int argc, char **argv) {
     trimm_option_p->check(CLI::IsMember(std::set<int> {0, 33, 64}));
     trimm_option_f->check(CLI::ExistingPath);
     trimm_option_r->check(CLI::ExistingPath);
-    trimm_option_o->required()->check(CLI::ExistingPath);
-    trimm_option_l->required()->check(CLI::ExistingPath);
-    trimm_option_stat->required()->check(CLI::ExistingPath);
+    trimm_option_o->required();
+    trimm_option_l->required();
+    trimm_option_stat->required();
     trimm_option_s->required();
     trimm_option_c->check(CLI::Range(1, 9).description("compression level is limited to be between 1 and 9"));
     CLI11_PARSE(app, argc, argv);
@@ -68,9 +68,11 @@ int main( int argc, char **argv) {
     rp.steps = steps;
     rp.validatePairing = validatePairing;
 
+
 	double start,finish;
 	rabbit::Logger logger(true, true, quiet);
-	start = getTime();
+  logger.infoln("using thread nums : " + std::to_string(threads));
+	start = rabbit::trim::util::getTime();
     if(app.got_subcommand(ktrim)){
         logger.infoln("run the subcommand : ktrim");
     }else{
@@ -86,7 +88,7 @@ int main( int argc, char **argv) {
         rabbit::trim::process_se(rp, logger);
     }
     
-	finish = getTime();
-	cout<<"Time: "<<finish-start<<" s"<<endl;
+	finish = rabbit::trim::util::getTime();
+  std::cout<<"Time: "<<finish-start<<" s"<< std::endl;
 	return 0;
 }

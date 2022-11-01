@@ -4,9 +4,7 @@
 #include <string>
 #include "Logger.h"
 #include "Reference.h"
-#include "Globals.h"
 #include <assert.h>
-#include <limits.h>
 namespace rabbit
 {
     namespace trim
@@ -21,16 +19,16 @@ namespace rabbit
                     ~IlluminaPrefixPair() = default;
                     
                     
-                    int packCh(char ch, bool reverse);
+                    uint64 packCh(char ch, bool reverse);
                     uint64* packSeqInternal(std::string seq, bool reverse);
                     uint64* packSeqInternal(Reference& rec, bool reverse);
                     float calculatePalindromeDifferenceQuality(Reference& rec1, Reference& rec2, int overlap, int skip1, int skip2);
                     int palindromeReadsCompare(Reference& rec1, Reference& rec2);
                 private:
-                    const int BASE_A = 1;
-                    const int BASE_C = 4;
-                    const int BASE_G = 8;
-                    const int BASE_T = 2;
+                    const uint64 BASE_A = 1;
+                    const uint64 BASE_C = 4;
+                    const uint64 BASE_G = 8;
+                    const uint64 BASE_T = 2;
                     const float LOG10_4 = 0.60206f;
                     
                     rabbit::Logger logger;

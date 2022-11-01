@@ -311,6 +311,10 @@ int chunkFormat(FastqDataChunk* fqDataChunk, std::vector<Reference> &data, bool 
 		ref.seq = sequence;
 		ref.strand = strand;
 
+    // add length and headPos info 
+    ref.length = sequence.length();
+    ref.headPos = 0;
+
 		if(!mHasQuality){
 			string quality = string(sequence.length(), 'K');
 			//std::cerr << quality << std::endl;

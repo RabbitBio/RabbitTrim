@@ -1,7 +1,6 @@
 #ifndef ILLUMINA_CLIPPING_SEQ_H
 #define ILLUMINA_CLIPPING_SEQ_H
 #include <string>
-#include "Globals.h"
 #include "Reference.h"
 
 namespace rabbit

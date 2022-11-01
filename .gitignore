@@ -1,0 +1,6 @@
+*filelist*
+build
+testing_dataset/*.fq
+tmp
+inc
+tri

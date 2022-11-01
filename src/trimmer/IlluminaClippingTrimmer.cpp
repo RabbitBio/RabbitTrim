@@ -34,19 +34,19 @@ IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int ph
    std::getline(fastaAdapter, curLine);
    // get all adapter
    while(!fastaAdapter.eof()){
-        ClearHeadTailSpace(curLine);
+     rabbit::trim::util::ClearHeadTailSpace(curLine);
         while(curLine.size() && curLine.at(0) != '>'){
             if(!std::getline(fastaAdapter, curLine)) break;
-            ClearHeadTailSpace(curLine);
+            rabbit::trim::util::ClearHeadTailSpace(curLine);
         }
         if(curLine.size() && curLine.at(0) == '>'){
             std::string fullName = curLine.substr(1);
-            std:vector<std::string> tokens = split(fullName, "[\\| ]");
+std::vector<std::string> tokens = rabbit::trim::util::split(fullName, "[\\| ]");
             name = tokens[0];
             
             sequence = "";
             while(std::getline(fastaAdapter, curLine)){
-                ClearHeadTailSpace(curLine);
+              rabbit::trim::util::ClearHeadTailSpace(curLine);
                 if(curLine.size() == 0) continue;
                 if(curLine.at(0) == '>') break;
                 if(curLine.at(0) == ';') continue;
@@ -55,16 +55,16 @@ IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int ph
         }
         if(sequence.size() == 0) continue;
 
-        if(endsWith(name, SUFFIX_F)){
+        if(rabbit::trim::util::endsWith(name, SUFFIX_F)){
             forwardSeqMap.insert(std::make_pair(name, sequence));
-            if(startsWith(name, PREFIX)){
+            if(rabbit::trim::util::startsWith(name, PREFIX)){
                 forwardPrefix.insert(name.substr(0, name.size() - SUFFIX_F.size()));
             }
         }
         else{
-            if(endsWith(name, SUFFIX_R)){
+            if(rabbit::trim::util::endsWith(name, SUFFIX_R)){
                 reverseSeqMap.insert(std::make_pair(name, sequence));
-                if(startsWith(name, PREFIX)){
+                if(rabbit::trim::util::startsWith(name, PREFIX)){
                     reversePrefix.insert(name.substr(0, name.size() - SUFFIX_R.size()));
                 }
             }
@@ -74,6 +74,7 @@ IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int ph
         }
         
    }
+
 
    // load sequence
    // find same elements in forwardPrefix and reversePrefix
@@ -163,6 +164,13 @@ IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int ph
    }
 
    logger.infoln("ILLUMINACLIP: Using " + std::to_string(prefixPairs.size()) + " prefix pairs, " + std::to_string(commonSeqs.size()) + " forward/reverse sequences, " + std::to_string(forwardSeqs.size()) +  " forward only sequences, " + std::to_string(reverseSeqs.size()) + " reverse only sequences");
+
+}
+
+IlluminaClippingTrimmer::~IlluminaClippingTrimmer(){
+  std::cout << "=============" << std::endl;
+  std::cout << "~IlluminaClippingTrimmer()" << std::endl;
+  std::cout << "=============" << std::endl;
 
 }
 // single end

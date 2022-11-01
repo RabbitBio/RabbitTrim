@@ -13,8 +13,8 @@ struct Reference {
   std::string seq;
   std::string quality;
   std::string strand;
-  uint64_t length;
-  uint64_t headPos;
+  int length  = 0;
+  int headPos = 0;
   uint64_t gid;
 };
 

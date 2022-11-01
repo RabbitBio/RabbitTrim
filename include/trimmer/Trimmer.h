@@ -9,8 +9,8 @@ namespace rabbit{
         class Trimmer{
             public:
                 virtual void processOneRecord(Reference& rec) = 0;
-                virtual void processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse);
-                virtual ~Trimmer() = default; 
+                virtual void processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse) = 0;
+                virtual ~Trimmer() = default;
         };
     } // namespace trim
 }

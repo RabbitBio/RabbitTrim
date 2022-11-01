@@ -11,10 +11,10 @@ namespace rabbit{
 
         public:
             Logger(){} 
-            Logger(bool showError_, bool showWarning_, bool showInfo_){
+            Logger(bool showError_, bool showWarning_, bool queit){
                 showError = showError_;
                 showWarning = showWarning_;
-                showInfo = showInfo_;
+                showInfo = !queit;
             }
 
             Logger(const Logger& logger_){

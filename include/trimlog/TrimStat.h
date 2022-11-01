@@ -20,6 +20,7 @@ namespace rabbit
 
                 TrimStat();
                 TrimStat(rabbit::Logger& logger);
+                TrimStat(const TrimStat &trimStat_);
                 ~TrimStat();
                 void merge(std::vector<TrimStat>& trimStatArr);
                 void printSE(std::string filename);

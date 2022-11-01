@@ -9,7 +9,6 @@ IlluminaPrefixPair::IlluminaPrefixPair(std::string prefix1_, std::string prefix2
     seedMax = seedMaxMiss * 2;
     minPalindromeLikelihood = minPalindromeLikelihood_;
     palindromeKeepBoth = palindromeKeepBoth_;
-    logger.infoln("Using PrefixPair: '" + prefix1_ + "' and '" + prefix2_ + "'");
     int prefix1Len = prefix1_.length();
     int prefix2Len = prefix2_.length();
     int minLength = prefix1Len < prefix2Len ? prefix1Len : prefix2Len;
@@ -20,7 +19,7 @@ IlluminaPrefixPair::IlluminaPrefixPair(std::string prefix1_, std::string prefix2
     
 }
 
-int IlluminaPrefixPair::packCh(char ch, bool reverse){
+uint64 IlluminaPrefixPair::packCh(char ch, bool reverse){
     if(!reverse){
         switch (ch)
         {
@@ -56,7 +55,7 @@ int IlluminaPrefixPair::packCh(char ch, bool reverse){
             break;
         }
     }
-    return 0;
+    return 0ULL;
 }
 
 //TODO 将Prefix 和 rec.seq 合并后再求packs, 和当前的方式比较看看哪一个效率更高
@@ -66,29 +65,28 @@ uint64* IlluminaPrefixPair::packSeqInternal(Reference& rec, bool reverse){
     assert(len > 15);
     int cur_headPos = rec.headPos;
     uint64* out; // 用长度为16的窗口生产kmer
+    uint64 pack = 0;
     out = new uint64[len - 15];
     if(!reverse){
-        uint64 pack = 0;
         for(int i = 0; i < prefixLen; i++){
-            int tmp = packCh(prefix1.at(i), false);
+            uint64 tmp = packCh(prefix1.at(i), false);
             pack = (pack << 4) | tmp;
             if(i >= 15) out[i - 15] = pack; // 类似于长度为16的kmer
         }
         for(int i = 0; i < seqLen; i++) {
-            int tmp = packCh(rec.seq.at(i + cur_headPos), false);
+            uint64 tmp = packCh(rec.seq.at(i + cur_headPos), false);
             pack = (pack << 4) | tmp;
             if(i + prefixLen >= 15) out[i + prefixLen - 15] = pack; // 类似于长度为16的kmer
         }
     }
     else{
-        uint64 pack = 0;
         for(int i = 0; i < prefixLen; i++){
-            int tmp = packCh(prefix2.at(i), true);
-            pack = (pack >> 4) | (tmp << 60);
+            uint64 tmp = packCh(prefix2.at(i), true);
+            pack = ((pack >> 4) | (tmp << 60));
             if(i >= 15) out[i - 15] = pack;
         }
         for(int i = 0; i < seqLen; i++) {
-            int tmp = packCh(rec.seq.at(i + cur_headPos), true);
+            uint64 tmp = packCh(rec.seq.at(i + cur_headPos), true);
             pack = (pack >> 4) | (tmp << 60); // 当rec是reverse read时，产生其反向互补链的pack
             if(i + prefixLen >= 15) out[i + prefixLen - 15] = pack; // 类似于长度为16的kmer
         }

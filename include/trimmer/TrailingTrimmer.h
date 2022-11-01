@@ -2,6 +2,7 @@
 #define TRAILING_TRIMMER_H
 
 #include "trimmer/Trimmer.h"
+#include <string>
 
 namespace rabbit
 {

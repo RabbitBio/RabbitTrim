@@ -16,6 +16,13 @@ TrimStat::TrimStat(rabbit::Logger& logger) : logger(logger){
     
 } 
 
+TrimStat::TrimStat(const TrimStat& trimStat_){
+  readsInput = trimStat_.readsInput;
+  readsSurvivingBoth = trimStat_.readsSurvivingBoth;
+  readsSurvivingForward = trimStat_.readsSurvivingForward;
+  readsSurvivingReverse = trimStat_.readsSurvivingReverse;
+}
+
 TrimStat::~TrimStat() = default;
 
 // void TrimStat::operator=(const TrimStat& ts){

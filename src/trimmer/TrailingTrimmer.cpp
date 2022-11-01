@@ -1,5 +1,4 @@
 #include "trimmer/TrailingTrimmer.h"
-#include <string>
 
 using namespace rabbit::trim;
 

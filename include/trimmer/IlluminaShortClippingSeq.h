@@ -6,7 +6,6 @@
 #include <assert.h>
 #include <set>
 #include <vector>
-#include <limits.h>
 
 namespace rabbit
 {

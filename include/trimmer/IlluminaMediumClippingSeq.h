@@ -5,6 +5,7 @@
 #include <string>
 #include <set>
 #include <limits.h>
+#include <cassert>
 
 namespace rabbit
 {
