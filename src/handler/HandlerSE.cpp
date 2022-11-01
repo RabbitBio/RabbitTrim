@@ -1,12 +1,14 @@
-#include "core/HandlerSE.h"
+#include "handler/HandlerSE.h"
 
 using namespace rabbit::trim;
 
 int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &logger) {
-  rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(256,MEM_PER_CHUNK);
-  rabbit::trim::FastqDataChunkQueue queue1(256,1);
   // the number of consumer 
   int consumer_num = rp.threads - 3;
+
+  rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(256,MEM_PER_CHUNK);
+  rabbit::trim::FastqDataChunkQueue queue1(256,1);
+  rabbit::trim::WriterDataQueue queue2(256, consumer_num);
 
   // Trim Stats for each thread
   std::vector<rabbit::trim::TrimStat> statsArr(consumer_num);
@@ -40,16 +42,17 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   std::thread **consumer_threads = new std::thread* [consumer_num]; 
   for(int tn = 0; tn < consumer_num; tn++){
     // asm ("":::"memory");
-    consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_se_task, std::ref(rp), fastqPool, std::ref(queue1), std::ref(statsArr[tn]), std::ref(trimmers)));
+    consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_se_task, std::ref(rp), fastqPool, std::ref(queue1), std::ref(queue2), std::ref(statsArr[tn]), std::ref(trimmers)));
   }
 
   // writer 
-  // std::thread* writer = new std::thread(std::bind(&writer_pe_task, rp, &consumer_task_finished));
+  std::thread writer = new std::thread(rabbit::trim::writer_se_task, std::(rp), std::ref(queue2));
 
   producer.join();
   for(int tn = 0; tn < consumer_num; tn++){
     consumer_threads[tn]->join();
   }
+  writer.join();
 
   // writer->join();
 
@@ -102,7 +105,7 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
 
 
 // comusmer task
-void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, rabbit::trim::TrimStat& rstats,
+void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterDataQueue& dq2, rabbit::trim::TrimStat& rstats,
     const std::vector<rabbit::trim::Trimmer*>& trimmers)
 {
   bool isReverse = rp.reverseFiles.size();
@@ -112,11 +115,39 @@ void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
     // std::vector<Reference> data;
     std::vector<neoReference> data;
     int loaded  = rabbit::fq::chunkFormat(fqChunk->chunk, data, true);
-    fastqPool->Release(fqChunk->chunk);
-
     for(auto trimmer : trimmers){
       trimmer -> processRecords(data, false, isReverse);
     }
+
+    // copy data to WriterBuffer
+    WriterBuffer wb = new WriterBuffer(MEM_PER_CHUNK);
+    uint64_t pos = 0;
+    for(auto rec : data){
+      std::memcpy(wb->data + pos, (rec.base + rec.pname), rec.lname);
+      pos += rec.lname;
+      wb->data[pos++] = '\n';
+      std::memcpy(wb->data + pos, (rec.base + rec.pseq), rec.lseq);
+      pos += rec.lseq;
+      wb->data[pos++] = '\n';
+      std::memcpy(wb->data + pos, (rec.base + rec.pstrand), rec.lstrand);
+      pos += rec.lstrand;
+      wb->data[pos++] = '\n';
+      std::memcpy(wb->data + pos, (rec.base + rec.pqual), rec.lqual);
+      pos += rec.lqual;
+      wb->data[pos++] = '\n';
+      wb->data[pos++] = '\0';
+    }
+    fastqPool->Release(fqChunk->chunk);
+    dq2.Push(chunk_id, wb);
     rstats.readsInput += loaded;
   }
+  dq2.SetCompleted();
 }
+
+void rabbit::trim::writer_se_task(rabbit::trim::RabbitTrimParam& rp,  WriterDataQueue& dq2){
+  rabbit::int64 chunk_id;
+  WriterBuffer* wb = new WriterBuffer();
+  while(dq2.Pop(chunk_id, wb)){
+    // write to file
+  }
+} 

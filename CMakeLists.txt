@@ -44,11 +44,11 @@ include_directories(${INCLUlDE_PATH} ${IO_INCLUlDE_PATH})
 # source files
 set(SOURCE_PATH ${CMAKE_SOURCE_DIR}/src)
 set(IO_SOURCE_PATH ${CMAKE_SOURCE_DIR}/src/io)
-aux_source_directory(${SOURCE_PATH}/core DIR_SRC_CORE)
+aux_source_directory(${SOURCE_PATH}/handler DIR_SRC_HANDLER)
 aux_source_directory(${SOURCE_PATH}/trimmer DIR_SRC_TRIM)
 aux_source_directory(${SOURCE_PATH}/trimlog DIR_SRC_LOG)
 aux_source_directory(${SOURCE_PATH}/utils DIR_SRC_UTIL)
-add_library(rtrim STATIC ${DIR_SRC_CORE} ${DIR_SRC_TRIM} ${DIR_SRC_LOG}
+add_library(rtrim STATIC ${DIR_SRC_HANDLER} ${DIR_SRC_TRIM} ${DIR_SRC_LOG}
   ${DIR_SRC_UTIL})
 aux_source_directory(${IO_SOURCE_PATH} DIR_SRC_IO)
 add_library(io STATIC ${DIR_SRC_IO})

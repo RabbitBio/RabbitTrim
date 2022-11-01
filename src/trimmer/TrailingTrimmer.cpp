@@ -48,7 +48,6 @@ void TrailingTrimmer::processOneRecord(neoReference& rec){
     // rec.quality = "";
 }
 
-
 void TrailingTrimmer::processRecords(std::vector<neoReference>& recs, bool isPair, bool isReverse){
     for(neoReference& rec : recs){
         processOneRecord(rec);
