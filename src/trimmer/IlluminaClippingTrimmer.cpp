@@ -294,11 +294,13 @@ void IlluminaClippingTrimmer::processPairRecord(neoReference& rec1, neoReference
     int toKeep;
     for(auto& iter : prefixPairs){
         toKeep = iter -> palindromeReadsCompare(rec1, rec2);
-        toKeepForward = (toKeep < toKeepForward) ? toKeep : toKeepForward;
-        if(palindromeKeepBoth){
+        if(toKeep != (1 << 30)){
+          toKeepForward = (toKeep < toKeepForward) ? toKeep : toKeepForward;
+          if(palindromeKeepBoth){
             toKeepReverse = (toKeep < toKeepReverse) ? toKeep : toKeepReverse;
-        }else{
+          }else{
             toKeepReverse = 0;
+          }
         }
     }
 

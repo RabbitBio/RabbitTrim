@@ -57,9 +57,9 @@ void TrimStat::printSE(std::string filename){
     fout.precision(2);
     fout << "Input Reads: " << readsInput << '\n'
          << "Surviving Reads: " << readsSurvivingForward << '\n'
-         << "Surviving Read Percent: "  << survivingPercent << '\n'
-         << "Dropped Reads: " << readsSurvivingForward << '\n'
-         << "Dropped Read Percent: "  << droppedPercent << '\n';
+         << "Surviving Read Percent: "  << survivingPercent << "%" << '\n'
+         << "Dropped Reads: " << dropped << '\n'
+         << "Dropped Read Percent: "  << droppedPercent << "%" << '\n';
     fout.close();
     
 }
@@ -81,12 +81,12 @@ void TrimStat::printPE(std::string filename){
     fout.precision(2);
     fout << "Input Read Pairs: " << readsInput << '\n'
          << "Both Surviving Reads: " << readsSurvivingBoth << '\n'
-         << "Both Surviving Read Percent: " << survivingBothPercent << '\n'
+         << "Both Surviving Read Percent: " << survivingBothPercent << "%" << '\n'
          << "Forward Only Surviving Reads: " << readsSurvivingForward << '\n'
-         << "Forward Only Surviving Read Percent: " << survivingForwardPercent << '\n'
+         << "Forward Only Surviving Read Percent: " << survivingForwardPercent << "%" << '\n'
          << "Reverse Only Surviving Reads: " << readsSurvivingReverse << '\n'
-         << "Reverse Only Surviving Read Percent: " << survivingReversePercent << '\n'
+         << "Reverse Only Surviving Read Percent: " << survivingReversePercent << "%" << '\n'
          << "Dropped Reads: " << dropped << '\n'
-         << "Dropped Read Percent: "  << droppedPercent << '\n';
+         << "Dropped Read Percent: "  << droppedPercent << "%" << '\n';
     fout.close();
 }

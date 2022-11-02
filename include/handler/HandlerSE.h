@@ -16,7 +16,7 @@
 #include "FastxChunk.h"
 #include "trimlog/TrimStat.h"
 #include "trimmer/TrimmerFactory.h"
-#include "WriterBuffer.h"
+#include "handler/WriterBuffer.h"
 
 namespace rabbit
 {
@@ -26,7 +26,7 @@ namespace rabbit
         int  process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &logger);
         int  producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, FastqDataChunkQueue& dq);
         void consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterDataQueue& dp2, rabbit::trim::TrimStat& rstats, const std::vector<rabbit::trim::Trimmer*>& trimmers);
-        void writer_se_task(rabbit::trim::RabbitTrimParam& rp,  WriterDataQueue& dq2); 
+        void writer_se_task(rabbit::trim::RabbitTrimParam& rp,  WriterDataQueue& dq2, rabbit::Logger& logger); 
     } // namespace trim
     
 } // namespace rabbit

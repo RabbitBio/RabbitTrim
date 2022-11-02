@@ -17,17 +17,17 @@
 #include "trimlog/TrimStat.h"
 #include "trimmer/TrimmerFactory.h"
 #include "Reference.h"
+#include "handler/WriterBuffer.h"
 
 namespace rabbit
 {
     namespace trim
     {
         typedef rabbit::core::TDataQueue<rabbit::fq::FastqDataPairChunk> FastqDataPairChunkQueue;
-        // typedef rabbit::core::TDataQueue<>> WriterDataQueue;
         int  process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &logger);
         int  producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, FastqDataPairChunkQueue& dq);
-        // void consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterDataQueue& dp2, rabbit::trim::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers);
-        void consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, rabbit::trim::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers);
+        void consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, PEWriterDataQueue& dq2, rabbit::trim::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers);
+        void writer_pe_task(rabbit::trim::RabbitTrimParam& rp, PEWriterDataQueue& dq2, rabbit::Logger& logger);
     } // namespace trim
     
 } // namespace rabbit

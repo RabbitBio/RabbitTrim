@@ -46,7 +46,7 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   }
 
   // writer 
-  std::thread writer = new std::thread(rabbit::trim::writer_se_task, std::(rp), std::ref(queue2));
+  std::thread writer(rabbit::trim::writer_se_task, std::ref(rp), std::ref(queue2), std::ref(logger));
 
   producer.join();
   for(int tn = 0; tn < consumer_num; tn++){
@@ -115,14 +115,17 @@ void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
     // std::vector<Reference> data;
     std::vector<neoReference> data;
     int loaded  = rabbit::fq::chunkFormat(fqChunk->chunk, data, true);
+    rstats.readsInput += loaded;
     for(auto trimmer : trimmers){
       trimmer -> processRecords(data, false, isReverse);
     }
 
     // copy data to WriterBuffer
-    WriterBuffer wb = new WriterBuffer(MEM_PER_CHUNK);
+    WriterBuffer* wb = new WriterBuffer((unsigned int)MEM_PER_CHUNK);
     uint64_t pos = 0;
     for(auto rec : data){
+      if(rec.lseq == 0) continue;
+      rstats.readsSurvivingForward++;
       std::memcpy(wb->data + pos, (rec.base + rec.pname), rec.lname);
       pos += rec.lname;
       wb->data[pos++] = '\n';
@@ -135,19 +138,25 @@ void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
       std::memcpy(wb->data + pos, (rec.base + rec.pqual), rec.lqual);
       pos += rec.lqual;
       wb->data[pos++] = '\n';
-      wb->data[pos++] = '\0';
     }
+    wb->data[pos++] = '\0';
     fastqPool->Release(fqChunk->chunk);
     dq2.Push(chunk_id, wb);
-    rstats.readsInput += loaded;
   }
   dq2.SetCompleted();
 }
 
-void rabbit::trim::writer_se_task(rabbit::trim::RabbitTrimParam& rp,  WriterDataQueue& dq2){
+void rabbit::trim::writer_se_task(rabbit::trim::RabbitTrimParam& rp,  WriterDataQueue& dq2, rabbit::Logger& logger){
+  std::ofstream fout((rp.output + ".fq").c_str());
+  if(fout.fail()){
+    logger.errorln("Can not open file " + rp.output);
+    exit(1);
+  }
   rabbit::int64 chunk_id;
-  WriterBuffer* wb = new WriterBuffer();
+  WriterBuffer* wb = new WriterBuffer;
   while(dq2.Pop(chunk_id, wb)){
     // write to file
+    fout << wb->data;
   }
+  fout.close();
 } 
