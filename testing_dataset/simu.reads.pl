@@ -17,8 +17,12 @@ srand( 7 );
 
 our @nuc = ( 'A', 'C', 'G', 'T' );
 ## for testing purpose, using the adapters from the Nextera kits
-our $adapter_1 = "CTGTCTCTTATACACATCT";
-our $adapter_2 = "AGATGTGTATAAGAGACAG";
+# our $adapter_1 = "CTGTCTCTTATACACATCT";
+# our $adapter_2 = "AGATGTGTATAAGAGACAG";
+# our $adapter_1 = "CTGTCTCTTATA";
+# our $adapter_2 = "AGATGTGTATAA";
+our $adapter_1 = "AGATCGGAAGAGCACACGTCTGAACTCCAGTCA";
+our $adapter_2 = "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT";
 
 my $num   = $ARGV[1] || 1e7;	## number of fragments
 my $min   = $ARGV[2] || 10;		## minimum fragment size

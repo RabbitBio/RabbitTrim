@@ -17,7 +17,7 @@ int main( int argc, char **argv) {
     bool isPE = false; 
     bool isSE = false; 
     int threads = get_nprocs_conf();
-    int phred = 0;
+    int phred= 0;
     std::vector<std::string> forwardFiles;
     std::vector<std::string> reverseFiles;
     std::string output;
@@ -47,7 +47,7 @@ int main( int argc, char **argv) {
     trimm_flag_pe->excludes(trimm_flag_se)->needs(trimm_option_f)->needs(trimm_option_r);
     trimm_flag_se->excludes(trimm_flag_pe);
     trimm_option_t->check(CLI::PositiveNumber);
-    trimm_option_p->check(CLI::IsMember(std::set<int> {0, 33, 64}));
+    trimm_option_p->required()->check(CLI::IsMember(std::set<int> {33, 64}));
     trimm_option_f->check(CLI::ExistingPath);
     trimm_option_r->check(CLI::ExistingPath);
     trimm_option_o->required();
@@ -67,7 +67,6 @@ int main( int argc, char **argv) {
     rp.stats = stats;
     rp.steps = steps;
     rp.validatePairing = validatePairing;
-
 
 	double start,finish;
 	rabbit::Logger logger(true, true, quiet);

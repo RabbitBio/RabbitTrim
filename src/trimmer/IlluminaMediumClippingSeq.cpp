@@ -1,3 +1,4 @@
+#include <iomanip>
 #include "trimmer/IlluminaMediumClippingSeq.h"
 
 using namespace rabbit::trim;
@@ -8,7 +9,7 @@ IlluminaMediumClippingSeq::IlluminaMediumClippingSeq(rabbit::Logger& logger_, in
     phred = phred_;
     seq = seq_;
     seqLen = seq.length();
-    seedMaxMiss = seedMaxMiss;
+    seedMaxMiss = seedMaxMiss_;
     seedMax = seedMaxMiss * 2;
     minSequenceLikelihood = minSequenceLikelihood_;
     minSequenceOverlap = minSequenceOverlap_;
@@ -71,6 +72,8 @@ int IlluminaMediumClippingSeq::readsSeqCompare(neoReference& rec){
     int packRecLen = rec.lseq;
     int packRecMax = packRecLen - minSequenceOverlap;
     int packClipMax = seqLen - 15; // pack.length Note：pack is produced by 'packSeqInternal'
+
+    // std::cout << "seedMax: " << seedMax << std::endl;
     
     for(int i = 0; i < packRecMax; i++){
         uint64 comboMask = calcSingleMask(packRecLen - i);
@@ -79,7 +82,13 @@ int IlluminaMediumClippingSeq::readsSeqCompare(neoReference& rec){
             if(diff <= seedMax){
                 int offset = i - j;
                 offsetSet.emplace(offset);
+                // std::cout << "add offset : " << offset << std::endl;
             }
+            // std::cout << "i: " << i << " j: " << j << " ";
+            // std::cout << "comboMask: " << std::setbase(16) << comboMask << " ";
+            // std::cout << "packRec: " << packRec[i] << " ";
+            // std::cout << "packClip: " << packClip[j] << " ";
+            // std::cout << "diff: " << std::setbase(10) << diff << std::endl;
         }
     }
 

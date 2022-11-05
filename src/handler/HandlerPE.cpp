@@ -7,8 +7,6 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(256,MEM_PER_CHUNK);
   rabbit::trim::FastqDataPairChunkQueue queue1(256,1);
   rabbit::trim::PEWriterDataQueue queue2(256,consumer_num);
-
-
   std::vector<rabbit::trim::TrimStat> statsArr(consumer_num);
 
   // PairingValidator

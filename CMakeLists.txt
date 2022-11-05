@@ -22,7 +22,7 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "release")
     set(COMMON_FLAGS "${COMMON_FLAGS} -w")
     message(STATUS "CMAKE_BUILD_TYPE : ${CMAKE_BUILD_TYPE}, compile ${CMAKE_PROJECT_NAME} with ${COMMON_FLAGS} flag.")
 elseif("${CMAKE_BUILD_TYPE}" STREQUAL "debug")
-    set(COMMON_FLAGS "${COMMON_FLAGS} -g -Wall")
+    set(COMMON_FLAGS "${COMMON_FLAGS} -g -Wall -fsanitize=address")
     message(STATUS "CMAKE_BUILD_TYPE : ${CMAKE_BUILD_TYPE}, compile ${CMAKE_PROJECT_NAME} with ${COMMON_FLAGS} flag.")
 endif("${CMAKE_BUILD_TYPE}" STREQUAL "release")
 
