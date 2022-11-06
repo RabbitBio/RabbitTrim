@@ -1,4 +1,4 @@
-#include <iomanip>
+// #include <iomanip>
 #include "trimmer/IlluminaMediumClippingSeq.h"
 
 using namespace rabbit::trim;

@@ -9,9 +9,10 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(256,MEM_PER_CHUNK);
   rabbit::trim::FastqDataChunkQueue queue1(256,1);
   rabbit::trim::WriterDataQueue queue2(256, consumer_num);
+  TrimLogDataQueue queue3(256, consumer_num);
 
   // Trim Stats for each thread
-  std::vector<rabbit::trim::TrimStat> statsArr(consumer_num);
+  std::vector<rabbit::log::TrimStat> statsArr(consumer_num);
 
   // PairingValidator
   rabbit::PairingValidator* pairingValidator;
@@ -23,16 +24,11 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   std::vector<Trimmer*> trimmers;
   trimmerFactory -> makeTrimmers(rp.steps, rp.phred, trimmers);
 
-
   // trim log
-  std::ofstream foutTrimLog(rp.trimLog);
+  std::thread* trimlog_thread;
   if(rp.trimLog.size()){
-    if(foutTrimLog.fail()){
-      logger.errorln("Can not open file " + rp.trimLog);
-      return 105;
-    }
+    trimlog_thread = new std::thread(std::bind(trimlog_se_task, std::ref(rp), std::ref(queue3), std::ref(logger)));
   }
-  if(rp.trimLog.size()) foutTrimLog.close();
 
   // producer
   std::thread producer(rabbit::trim::producer_se_task, std::ref(rp), std::ref(logger), fastqPool, std::ref(queue1));
@@ -42,7 +38,7 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   std::thread **consumer_threads = new std::thread* [consumer_num]; 
   for(int tn = 0; tn < consumer_num; tn++){
     // asm ("":::"memory");
-    consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_se_task, std::ref(rp), fastqPool, std::ref(queue1), std::ref(queue2), std::ref(statsArr[tn]), std::ref(trimmers)));
+    consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_se_task, std::ref(rp), fastqPool, std::ref(queue1), std::ref(queue2), std::ref(queue3), std::ref(statsArr[tn]), std::ref(trimmers)));
   }
 
   // writer 
@@ -53,18 +49,11 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
     consumer_threads[tn]->join();
   }
   writer.join();
-
-  // writer->join();
-
-  // if(isFileExist(fname)){
-  // 	// delete file
-  // 	if(remove(fname) != 0){
-  // 		fprintf( stderr, "\033[1;34mError: remove file %s error!\033[0m\n",fname);
-  // 	}
-  // }
+  if(rp.trimLog.size())
+    trimlog_thread -> join();
 
   // write trim stats
-  rabbit::trim::TrimStat * totalStat = new rabbit::trim::TrimStat(logger);
+  rabbit::log::TrimStat * totalStat = new rabbit::log::TrimStat(logger);
   totalStat -> merge(statsArr);
   totalStat -> printSE(rp.stats);
   return 0;
@@ -105,10 +94,11 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
 
 
 // comusmer task
-void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterDataQueue& dq2, rabbit::trim::TrimStat& rstats,
+void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterDataQueue& dq2, TrimLogDataQueue& dq3, rabbit::log::TrimStat& rstats,
     const std::vector<rabbit::trim::Trimmer*>& trimmers)
 {
   bool isReverse = rp.reverseFiles.size();
+  bool isLog = rp.trimLog.size();
   rabbit::int64 chunk_id;
   rabbit::fq::FastqChunk* fqChunk = new rabbit::fq::FastqChunk;
   while(dq.Pop(chunk_id,fqChunk->chunk)){
@@ -120,8 +110,10 @@ void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
       trimmer -> processRecords(data, false, isReverse);
     }
 
-    // copy data to WriterBuffer
+    // copy data to WriterBuffer 
     WriterBuffer* wb = new WriterBuffer((unsigned int)MEM_PER_CHUNK);
+    rabbit::log::TrimLogBuffer* tb;
+    if(isLog) tb = new rabbit::log::TrimLogBuffer(MEM_PER_TRIMLOG_BUFFER);
     uint64_t pos = 0;
     for(auto rec : data){
       if(rec.lseq == 0) continue;
@@ -140,10 +132,35 @@ void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
       wb->data[pos++] = '\n';
     }
     wb->data[pos++] = '\0';
-    fastqPool->Release(fqChunk->chunk);
     dq2.Push(chunk_id, wb);
+    if(isLog)
+    {
+      uint64_t pos_ = 0;
+      for(auto rec : data){
+        std::memcpy(tb->data + pos_, (rec.base + (rec.pname + 1)), rec.lname - 1);
+        pos_ += rec.lname - 1;
+        tb->data[pos_++] = ' ';
+        int length = 0;
+        int startPos = 0;
+        int endPos = 0;
+        int trimTail = 0;
+        if(rec.lseq != 0){
+          length = rec.lseq;
+          startPos = rec.pseq - rec.porigin;
+          endPos = startPos + length;
+          trimTail = rec.lorigin - endPos;
+        }
+        std::string tmp = std::to_string(length) + " " + std::to_string(startPos) + " " + std::to_string(endPos) + " " + std::to_string(trimTail) + "\n";
+        std::memcpy(tb->data + pos_, tmp.c_str(), tmp.size());
+        pos_ += tmp.size();
+      }
+      tb->data[pos_++] = '\0';
+      dq3.Push(chunk_id, tb);
+    }
+    fastqPool->Release(fqChunk->chunk);
   }
   dq2.SetCompleted();
+  dq3.SetCompleted();
 }
 
 void rabbit::trim::writer_se_task(rabbit::trim::RabbitTrimParam& rp,  WriterDataQueue& dq2, rabbit::Logger& logger){
@@ -160,3 +177,19 @@ void rabbit::trim::writer_se_task(rabbit::trim::RabbitTrimParam& rp,  WriterData
   }
   fout.close();
 } 
+
+void rabbit::trim::trimlog_se_task(rabbit::trim::RabbitTrimParam& rp, TrimLogDataQueue& dq, rabbit::Logger& logger){
+  std::ofstream fout((rp.trimLog).c_str());
+  if(fout.fail()){
+    logger.errorln("Can not open file " + rp.trimLog);
+    exit(1);
+  }
+  rabbit::int64 chunk_id;
+  rabbit::log::TrimLogBuffer* tb = new rabbit::log::TrimLogBuffer;
+  while(dq.Pop(chunk_id, tb)){
+    // write to file
+    fout << tb->data;
+  }
+  fout.close();
+  
+}

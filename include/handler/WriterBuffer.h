@@ -50,9 +50,9 @@ namespace rabbit
       }
     };
 
-    typedef rabbit::core::TDataPool<WriterBuffer> WriterDataPool;
-    typedef rabbit::core::TDataQueue<WriterBuffer> WriterDataQueue;
-    typedef rabbit::core::TDataQueue<PEWriterBuffer> PEWriterDataQueue;
+    // typedef rabbit::core::TDataPool<WriterBuffer> WriterDataPool;
+    // typedef rabbit::core::TDataQueue<WriterBuffer> WriterDataQueue;
+    // typedef rabbit::core::TDataQueue<PEWriterBuffer> PEWriterDataQueue;
 
 
   } // namespace trim

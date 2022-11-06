@@ -9,6 +9,7 @@ namespace rabbit
     namespace trim
     {
         const int MEM_PER_CHUNK = 1 << 22; // size of chunk
+        const int MEM_PER_TRIMLOG_BUFFER = 1 << 20; // size of chunk
         struct RabbitTrimParam{
             RabbitTrimParam() = default;
             std::vector<std::string> forwardFiles;

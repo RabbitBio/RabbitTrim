@@ -1,5 +1,5 @@
 #include "trimlog/TrimStat.h"
-using namespace rabbit::trim;
+using namespace rabbit::log;
 
 TrimStat::TrimStat(){
     readsInput = 0ULL;

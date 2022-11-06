@@ -1,6 +1,6 @@
 #include "trimlog/TrimLogRecord.h"
 
-using namespace rabbit;
+using namespace rabbit::log;
 
 TrimLogRecord::TrimLogRecord() = default;
 TrimLogRecord::~TrimLogRecord() = default;

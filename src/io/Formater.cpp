@@ -231,6 +231,10 @@ int chunkFormat(FastqDataChunk *fqDataChunk, std::vector<neoReference> &data, bo
     neoGetLine(chunk, pos_, ref.lqual);
     seq_count++;
     // print_read(ref);
+    
+    // add origin info
+    ref.porigin = ref.pseq;
+    ref.lorigin = ref.lseq;
     data.emplace_back(ref);
   }
 

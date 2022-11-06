@@ -7,7 +7,7 @@
 
 namespace rabbit
 {
-    namespace trim
+    namespace log
     {
         typedef unsigned long long uint64;
         class TrimStat
@@ -29,7 +29,7 @@ namespace rabbit
             private:
                 rabbit::Logger logger;
         };
-    } // namespace trim
+    } // namespace log
     
 } // namespace rabbit
 
