@@ -2,6 +2,14 @@
 
 using namespace std;
 
+
+std::pair<std::string, std::string> rabbit::trim::util::getBuiltInAdapter(std::string seqKit){
+            if(seqKit.compare("Nextera") == 0) return std::make_pair(Nextera_adapter_r1, Nextera_adapter_r2);
+            if(seqKit.compare("Transposase") == 0) return std::make_pair(Transposase_adapter_r1, Transposase_adapter_r2);
+            if(seqKit.compare("BGI") == 0) return std::make_pair(BGI_adapter_r1, BGI_adapter_r2);
+            return std::make_pair(Illumina_adapter_r1, Illumina_adapter_r2);
+        }
+
 bool rabbit::trim::util::startsWith(string const &value, string const &starting) {
   if (starting.size() > value.size()) return false;
   return equal(starting.begin(), starting.end(), value.begin());

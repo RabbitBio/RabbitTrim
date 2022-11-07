@@ -28,6 +28,16 @@ namespace rabbit
 	{
 		namespace util
 		{
+        const std::string Illumina_adapter_r1 = "AGATCGGAAGAGC";
+        const std::string Illumina_adapter_r2 = "AGATCGGAAGAGC";
+        const std::string Nextera_adapter_r1 = "CTGTCTCTTATACACATCT";
+        const std::string Nextera_adapter_r2 = "CTGTCTCTTATACACATCT";
+        const std::string Transposase_adapter_r1 = "TCGTCGGCAGCGTC";
+        const std::string Transposase_adapter_r2 = "GTCTCGTGGGCTCG";
+        const std::string BGI_adapter_r1 = "AAGTCGGAGGCCAAGCGGTC";
+        const std::string BGI_adapter_r2 = "AAGTCGGATCGTAGCCATGT";
+
+      std::pair<std::string, std::string> getBuiltInAdapter(std::string seqKit);
 			bool startsWith(std::string const &value, std::string const &starting);
 			bool endsWith(std::string const &value, std::string const &ending);
 

@@ -36,7 +36,7 @@ void SeedClippingTrimmer::processSingleRecord(neoReference& rec)
     char* rec_qual = (char*)(rec.base + rec.pqual);
     int stop = minLen - 1;
     int i, j;
-    for(i = rec.len - 1; i >= stop; )
+    for(i = rec_len - 1; i >= stop; )
     {
         // int qual = rec_seq[i] == 'N' ? 0 : (rec_qual[i] - phred);
         int qual = rec_qual[i] - phred;
@@ -197,7 +197,7 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
         bool isFound = true;
         int pos = *iter;
         int compLen = rec_len - pos;
-        compLen = compLen > seqA.size() ? seqA.szie() : compLen;
+        compLen = compLen > seqA.size() ? seqA.size() : compLen;
         int maxMiss = std::ceil(mismatch * compLen);
         char* rec1_start = rec1_seq + pos;
         char* rec2_start = rec2_seq + pos;

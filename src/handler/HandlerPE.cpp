@@ -393,8 +393,6 @@ void rabbit::trim::consumer_pe_task2(rabbit::trim::RabbitTrimParam& rp, rabbit::
     }
     wb->d1_p[pos1++] = '\0';
     wb->d2_p[pos2++] = '\0';
-    wb->d1_u[pos3++] = '\0';
-    wb->d2_u[pos4++] = '\0';
 
     fastqPool->Release(fqPairChunk->chunk->left_part);
     fastqPool->Release(fqPairChunk->chunk->right_part);

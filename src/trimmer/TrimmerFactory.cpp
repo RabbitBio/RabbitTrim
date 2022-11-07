@@ -139,17 +139,17 @@ Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, rabbit::trim::RabbitTr
     exit(1);
 }
 
-void TrimmerFactory::makeTrimmers(std::string steps, int phred, std::vector<Trimmer*>& trimmers){
-    std::istringstream is(steps);
-    while(is){
-        std::string oneStep;
-        is >> oneStep;
-        if(oneStep.size()){
-            Trimmer* trimmer = makeOneTrimmer(oneStep, phred);
-            trimmers.push_back(trimmer);
-        }
-    }
-}
+// void TrimmerFactory::makeTrimmers(std::string steps, int phred, std::vector<Trimmer*>& trimmers){
+//     std::istringstream is(steps);
+//     while(is){
+//         std::string oneStep;
+//         is >> oneStep;
+//         if(oneStep.size()){
+//             Trimmer* trimmer = makeOneTrimmer(oneStep, phred);
+//             trimmers.push_back(trimmer);
+//         }
+//     }
+// }
 
 void TrimmerFactory::makeTrimmers(rabbit::trim::RabbitTrimParam& rp, std::vector<std::string> steps, std::vector<Trimmer*>& trimmers){
     for(auto oneStep : steps){

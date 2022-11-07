@@ -59,7 +59,7 @@ int main( int argc, char **argv) {
     
     std::string seqA;
     std::string seqB;
-    std::string seqKit
+    std::string seqKit;
     int minLen = 36;
     int minQual = 20;
     int window = 5;
@@ -118,9 +118,7 @@ int main( int argc, char **argv) {
 	rabbit::Logger logger(true, true, quiet);
     logger.infoln("using thread nums : " + std::to_string(threads));
 	start = rabbit::trim::util::getTime();
-    bool isBasedKtrim = false;
     if(app.got_subcommand(ktrim)){
-        isBasedKtrim = true;
         logger.infoln("run the subcommand : ktrim");
     }else{
         logger.infoln("run the subcommand : trimmomatic");
@@ -130,8 +128,7 @@ int main( int argc, char **argv) {
         rabbit::trim::process_pe(rp, logger);
     }
     else{
-        if(isBasedKtrim) rabbit::trim::process_pe2(rp, logger);
-        else rabbit::trim::process_se(rp, logger);
+        rabbit::trim::process_se(rp, logger);
     }
     
 	finish = rabbit::trim::util::getTime();

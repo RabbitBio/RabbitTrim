@@ -35,7 +35,7 @@ namespace rabbit
                 ~TrimmerFactory();
                 
                 Trimmer* makeOneTrimmer(std::string step, rabbit::trim::RabbitTrimParam& rp);
-                void makeTrimmers(std::string steps, int phred, std::vector<Trimmer*>& trimmers);
+                // void makeTrimmers(std::string steps, int phred, std::vector<Trimmer*>& trimmers);
                 void makeTrimmers(rabbit::trim::RabbitTrimParam& rp, std::vector<std::string> steps, std::vector<Trimmer*>& trimmers);
                 
             private:

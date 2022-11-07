@@ -7,6 +7,7 @@
 #include <string>
 #include <set>
 #include <cstring>
+#include <math.h>
 
 namespace rabbit
 {
