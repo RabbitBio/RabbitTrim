@@ -20,6 +20,7 @@
 #include "trimmer/BaseCountTrimmer.h"
 #include "trimmer/ToPhred33Trimmer.h"
 #include "trimmer/ToPhred64Trimmer.h"
+#include "trimmer/SeedClippingTrimmer.h"
 #include <sstream>
 #include <vector>
 
@@ -33,9 +34,9 @@ namespace rabbit
                 TrimmerFactory(rabbit::Logger& logger_);
                 ~TrimmerFactory();
                 
-                Trimmer* makeOneTrimmer(std::string step, int phred);
+                Trimmer* makeOneTrimmer(std::string step, rabbit::trim::RabbitTrimParam& rp);
                 void makeTrimmers(std::string steps, int phred, std::vector<Trimmer*>& trimmers);
-                void makeTrimmers(std::vector<std::string> steps, int phred, std::vector<Trimmer*>& trimmers);
+                void makeTrimmers(rabbit::trim::RabbitTrimParam& rp, std::vector<std::string> steps, std::vector<Trimmer*>& trimmers);
                 
             private:
                 rabbit::Logger logger;

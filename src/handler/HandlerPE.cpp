@@ -18,7 +18,7 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   // trimmers
   TrimmerFactory *trimmerFactory = new TrimmerFactory(logger);
   std::vector<Trimmer*> trimmers;
-  trimmerFactory -> makeTrimmers(rp.steps, rp.phred, trimmers);
+  trimmerFactory -> makeTrimmers(rp, rp.steps, trimmers);
 
   // trim log
   std::thread* trimlog_thread;
@@ -31,33 +31,42 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
 
   // consumer
   std::thread **consumer_threads = new std::thread* [consumer_num]; 
-  for(int tn = 0; tn < consumer_num; tn++){
-    consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task, std::ref(rp), fastqPool, std::ref(queue1), std::ref(queue2), std::ref(queue3), std::ref(statsArr[tn]), std::ref(trimmers)));
+  if(rp.seqA.size()) 
+  {
+    for(int tn = 0; tn < consumer_num; tn++){
+      consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task2, std::ref(rp), fastqPool, std::ref(queue1), std::ref(queue2), std::ref(statsArr[tn]), std::ref(trimmers)));
+    }
+  }
+  else
+  {
+    for(int tn = 0; tn < consumer_num; tn++){
+      consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task, std::ref(rp), fastqPool, std::ref(queue1), std::ref(queue2), std::ref(queue3), std::ref(statsArr[tn]), std::ref(trimmers)));
+    }
   }
 
   // writer 
-  std::thread writer(rabbit::trim::writer_pe_task, std::ref(rp), std::ref(queue2), std::ref(logger));
+  std::thread* writer;
+  if(rp.seqA.size())
+  {
+    writer = new std::thread(rabbit::trim::writer_pe_task2, std::ref(rp), std::ref(queue2), std::ref(logger));
+  }
+  else
+  {
+    writer = new std::thread(rabbit::trim::writer_pe_task, std::ref(rp), std::ref(queue2), std::ref(logger));
+  }
 
   producer.join();
   for(int tn = 0; tn < consumer_num; tn++){
     consumer_threads[tn]->join();
   }
-  writer.join();
+  writer->join();
   if(rp.trimLog.size()) trimlog_thread -> join();
   
-
-
-  // if(isFileExist(fname)){
-  // 	// delete file
-  // 	if(remove(fname) != 0){
-  // 		fprintf( stderr, "\033[1;34mError: remove file %s error!\033[0m\n",fname);
-  // 	}
-  // }
-
   // write trim stats
   rabbit::log::TrimStat * totalStat = new rabbit::log::TrimStat(logger);
   totalStat -> merge(statsArr);
-  totalStat -> printPE(rp.stats);
+  if(rp.seqA.size()) totalStat -> print(rp.stats);
+  else totalStat -> printPE(rp.stats);
   return 0;
 }
 
@@ -293,7 +302,10 @@ void rabbit::trim::writer_pe_task(rabbit::trim::RabbitTrimParam& rp, PEWriterDat
   }
   fout1.close();
   fout2.close();
+  fout3.close();
+  fout4.close();
 }
+
 
 void rabbit::trim::trimlog_pe_task(rabbit::trim::RabbitTrimParam& rp, TrimLogDataQueue& dq, rabbit::Logger& logger){
 
@@ -310,4 +322,104 @@ void rabbit::trim::trimlog_pe_task(rabbit::trim::RabbitTrimParam& rp, TrimLogDat
     fout << tb->data;
   }
   fout.close();
+}
+
+
+
+void rabbit::trim::consumer_pe_task2(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, PEWriterDataQueue& dq2, rabbit::log::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers)
+{
+  rabbit::int64 chunk_id;
+  rabbit::fq::FastqPairChunk* fqPairChunk = new rabbit::fq::FastqPairChunk;
+  while(dq.Pop(chunk_id,fqPairChunk->chunk)){
+    // std::vector<Reference> data;
+    std::vector<neoReference> data;
+    data.reserve(2e4);
+    int loaded = rabbit::fq::chunkFormat(fqPairChunk->chunk->left_part , data, true);
+    int loaded2  = rabbit::fq::chunkFormat(fqPairChunk->chunk->right_part, data, true);
+    ASSERT(loaded == loaded2);
+    rstats.readsInput += loaded;
+    for(auto trimmer : trimmers){
+      trimmer -> processRecords(data, true, false);
+    }
+    // prepare trim log data
+    // bool isLog = (bool)rp.trimLog.size();
+    // rabbit::log::TrimLogBuffer* tb;
+
+    // copy data to WriterBuffer
+    PEWriterBuffer *wb = new PEWriterBuffer((unsigned int)MEM_PER_CHUNK, true);
+    uint64_t pos1 = 0; // d1_p
+    uint64_t pos2 = 0; // d2_p
+    
+    for(int i = 0; i < loaded; i++)
+    {
+      auto& rec1 = data[i];
+      auto& rec2 = data[i + loaded];
+      if(rec1.lorigin == 1) rstats.realHit++;
+      if(rec1.lorigin == 2) rstats.tailHit++;
+      if(rec1.lseq == 0 && rec2.lseq == 0)
+      {
+        rstats.readsDropped++;
+        continue;
+      }
+      if(rec1.lseq && rec2.lseq)
+      {
+          rstats.readsSurvivingBoth++;
+          std::memcpy(wb->d1_p + pos1, (rec1.base + rec1.pname), rec1.lname);
+          pos1 += rec1.lname;
+          wb->d1_p[pos1++] = '\n';
+          std::memcpy(wb->d1_p + pos1, (rec1.base + rec1.pseq), rec1.lseq);
+          pos1 += rec1.lseq;
+          wb->d1_p[pos1++] = '\n';
+          std::memcpy(wb->d1_p + pos1, (rec1.base + rec1.pstrand), rec1.lstrand);
+          pos1 += rec1.lstrand;
+          wb->d1_p[pos1++] = '\n';
+          std::memcpy(wb->d1_p + pos1, (rec1.base + rec1.pqual), rec1.lqual);
+          pos1 += rec1.lqual;
+          wb->d1_p[pos1++] = '\n';
+          // reverse
+          std::memcpy(wb->d2_p + pos2, (rec2.base + rec2.pname), rec2.lname);
+          pos2 += rec2.lname;
+          wb->d2_p[pos2++] = '\n';
+          std::memcpy(wb->d2_p + pos2, (rec2.base + rec2.pseq), rec2.lseq);
+          pos2 += rec2.lseq;
+          wb->d2_p[pos2++] = '\n';
+          std::memcpy(wb->d2_p + pos2, (rec2.base + rec2.pstrand), rec2.lstrand);
+          pos2 += rec2.lstrand;
+          wb->d2_p[pos2++] = '\n';
+          std::memcpy(wb->d2_p + pos2, (rec2.base + rec2.pqual), rec2.lqual);
+          pos2 += rec2.lqual;
+          wb->d2_p[pos2++] = '\n';
+      }
+    }
+    wb->d1_p[pos1++] = '\0';
+    wb->d2_p[pos2++] = '\0';
+    wb->d1_u[pos3++] = '\0';
+    wb->d2_u[pos4++] = '\0';
+
+    fastqPool->Release(fqPairChunk->chunk->left_part);
+    fastqPool->Release(fqPairChunk->chunk->right_part);
+    dq2.Push(chunk_id, wb);
+  }
+  dq2.SetCompleted();
+}
+
+
+void rabbit::trim::writer_pe_task2(rabbit::trim::RabbitTrimParam& rp, PEWriterDataQueue& dq2, rabbit::Logger& logger)
+{
+  std::ofstream fout1((rp.output + ".read1.fq").c_str());
+  std::ofstream fout2((rp.output + ".read2.fq").c_str());
+  if(fout1.fail() || fout2.fail())
+  {
+    logger.errorln("Can not open output file");
+    exit(1);
+  }
+  rabbit::int64 chunk_id;
+  PEWriterBuffer *wb = new PEWriterBuffer; 
+  while(dq2.Pop(chunk_id,wb))
+  {
+    fout1 << wb->d1_p;
+    fout2 << wb->d2_p;
+  }
+  fout1.close();
+  fout2.close();
 }

@@ -18,6 +18,11 @@ namespace rabbit
                 uint64 readsSurvivingForward;
                 uint64 readsSurvivingReverse;
 
+                uint64 readsDropped;
+                uint64 realHit;
+                uint64 tailHit;
+                uint64 dimer;
+                
                 TrimStat();
                 TrimStat(rabbit::Logger& logger);
                 TrimStat(const TrimStat &trimStat_);
@@ -25,6 +30,7 @@ namespace rabbit
                 void merge(std::vector<TrimStat>& trimStatArr);
                 void printSE(std::string filename);
                 void printPE(std::string filename);
+                void print(std::string filename);
 
             private:
                 rabbit::Logger logger;

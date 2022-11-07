@@ -25,25 +25,25 @@ namespace rabbit{
 
             void errorln(std::string message){
                 if(showError){
-                    std::cerr << "ERROR: " << message << std::endl;
+                    std::cerr << "\033[1;31mERROR: " << message << "\033[0m"<< std::endl;
                 }
             }
 
             void error(std::string message){
                 if(showError){
-                    std::cerr << "ERROR: " << message;
+                    std::cerr << "\033[1;31mERROR: " << message << "\033[0m";
                 }
             }
 
             void warningln(std::string message){
                 if(showWarning){
-                    std::cerr << "WARNING: " << message << std::endl;
+                    std::cerr << "\033[1;33mWARNING: " << message << "\033[0m" << std::endl;
                 }
             }
 
             void warning(std::string message){
                 if(showWarning){
-                    std::cerr << "WARNING: " << message;
+                    std::cerr << "\033[1;33mWARNING: " << message << "\033[0m";
                 }
             }
 

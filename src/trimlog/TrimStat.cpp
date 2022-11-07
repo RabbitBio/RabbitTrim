@@ -6,6 +6,11 @@ TrimStat::TrimStat(){
     readsSurvivingBoth = 0ULL;
     readsSurvivingForward = 0ULL;
     readsSurvivingReverse = 0ULL;
+    
+    readsDropped = 0ULL;
+    realHit = 0ULL;
+    tailHit = 0ULL;
+    dimer = 0ULL;
 } 
 
 TrimStat::TrimStat(rabbit::Logger& logger) : logger(logger){
@@ -13,7 +18,11 @@ TrimStat::TrimStat(rabbit::Logger& logger) : logger(logger){
     readsSurvivingBoth = 0ULL;
     readsSurvivingForward = 0ULL;
     readsSurvivingReverse = 0ULL;
-    
+
+    readsDropped = 0ULL;
+    realHit = 0ULL;
+    tailHit = 0ULL;
+    dimer = 0ULL;
 } 
 
 TrimStat::TrimStat(const TrimStat& trimStat_){
@@ -21,6 +30,11 @@ TrimStat::TrimStat(const TrimStat& trimStat_){
   readsSurvivingBoth = trimStat_.readsSurvivingBoth;
   readsSurvivingForward = trimStat_.readsSurvivingForward;
   readsSurvivingReverse = trimStat_.readsSurvivingReverse;
+
+  readsDropped = trimStat_.readsDropped;
+  realHit = trimStat_.realHit;
+  tailHit = trimStat_.tailHit;
+  dimer = trimStat_.dimer;
 }
 
 TrimStat::~TrimStat() = default;
@@ -38,6 +52,11 @@ void TrimStat::merge(std::vector<TrimStat>& trimStatArr){
         readsSurvivingBoth += t.readsSurvivingBoth;
         readsSurvivingForward += t.readsSurvivingForward;
         readsSurvivingReverse += t.readsSurvivingReverse;
+
+        readsDropped += t.readsDropped;
+        realHit += t.realHit;
+        tailHit += t.tailHit;
+        dimer += t.dimer;
     }
 
 }
@@ -89,4 +108,23 @@ void TrimStat::printPE(std::string filename){
          << "Dropped Reads: " << dropped << '\n'
          << "Dropped Read Percent: "  << droppedPercent << "%" << '\n';
     fout.close();
+}
+
+
+void TrimStat::print(std::string filename){
+    const char* path = filename.c_str();
+    std::ofstream fout(path);
+    if(fout.fail()) { 
+          logger.errorln("can not open file: " + filename);
+          return;
+    }
+    
+    fout << "Total\t" << readsInput << '\n'
+         << "Dropped\t" << readsDropped << '\n'
+         << "Adapter\t" << realHit << '\n'
+         << "TailHit\t" << tailHit << '\n'
+         << "Dimer\t" << dimer << '\n';
+
+    fout.close();
+    
 }

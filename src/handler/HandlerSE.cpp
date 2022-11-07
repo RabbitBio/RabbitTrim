@@ -22,7 +22,7 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   // trimmers
   TrimmerFactory *trimmerFactory = new TrimmerFactory(logger);
   std::vector<Trimmer*> trimmers;
-  trimmerFactory -> makeTrimmers(rp.steps, rp.phred, trimmers);
+  trimmerFactory -> makeTrimmers(rp, rp.steps, trimmers);
 
   // trim log
   std::thread* trimlog_thread;
@@ -55,7 +55,8 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   // write trim stats
   rabbit::log::TrimStat * totalStat = new rabbit::log::TrimStat(logger);
   totalStat -> merge(statsArr);
-  totalStat -> printSE(rp.stats);
+  if(rp.seqA.size()) totalStat -> print(rp.stats);
+  else totalStat -> printSE(rp.stats);
   return 0;
 }
 
@@ -101,9 +102,11 @@ void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
   bool isLog = rp.trimLog.size();
   rabbit::int64 chunk_id;
   rabbit::fq::FastqChunk* fqChunk = new rabbit::fq::FastqChunk;
-  while(dq.Pop(chunk_id,fqChunk->chunk)){
+  while(dq.Pop(chunk_id,fqChunk->chunk))
+  {
     // std::vector<Reference> data;
     std::vector<neoReference> data;
+    data.reserve(1e4);
     int loaded  = rabbit::fq::chunkFormat(fqChunk->chunk, data, true);
     rstats.readsInput += loaded;
     for(auto trimmer : trimmers){
@@ -115,8 +118,15 @@ void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
     rabbit::log::TrimLogBuffer* tb;
     if(isLog) tb = new rabbit::log::TrimLogBuffer(MEM_PER_TRIMLOG_BUFFER);
     uint64_t pos = 0;
-    for(auto rec : data){
-      if(rec.lseq == 0) continue;
+    for(auto rec : data)
+    {
+      if(rec.lorigin == 1) rstats.realHit++;
+      if(rec.lorigin == 2) rstats.tailHit++;
+      if(rec.lseq == 0)
+      {
+        rstats.readsDropped++;
+        continue;
+      }
       rstats.readsSurvivingForward++;
       std::memcpy(wb->data + pos, (rec.base + rec.pname), rec.lname);
       pos += rec.lname;

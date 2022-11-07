@@ -6,7 +6,8 @@ TrimmerFactory::TrimmerFactory() = default;
 TrimmerFactory::TrimmerFactory(rabbit::Logger& logger_):logger(logger_){}
 TrimmerFactory::~TrimmerFactory() = default;
                 
-Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, int phred){
+Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, rabbit::trim::RabbitTrimParam& rp){
+    int phred = rp.phred;
     std::string trimmerName;
     std::string trimmerArgs;
     std::size_t idx = step.find(":");
@@ -122,6 +123,17 @@ Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, int phred){
     if(trimmerName.compare("TOPHRED64") == 0) {
         return new ToPhred64Trimmer(phred) ;
     }
+    if(trimmerName.compare("SEED") == 0){
+        double mismatch = 0.125;
+        if(trimmerArgs.size()){
+            mismatch = std::stod(trimmerArgs);
+            if(mismatch <= 0 || mismatch >= 1){
+                logger.errorln("mismatch must be between 0 and 1");
+                exit(1);
+            }
+        }
+        return new SeedClippingTrimmer(mismatch, rp.seqA, rp.seqB, rp.minLen, rp.minQual, rp.window, phred);
+    }
     
     logger.errorln("Unknown trimmer: " + trimmerName);
     exit(1);
@@ -139,9 +151,9 @@ void TrimmerFactory::makeTrimmers(std::string steps, int phred, std::vector<Trim
     }
 }
 
-void TrimmerFactory::makeTrimmers(std::vector<std::string> steps, int phred, std::vector<Trimmer*>& trimmers){
+void TrimmerFactory::makeTrimmers(rabbit::trim::RabbitTrimParam& rp, std::vector<std::string> steps, std::vector<Trimmer*>& trimmers){
     for(auto oneStep : steps){
-        Trimmer* trimmer = makeOneTrimmer(oneStep, phred);
+        Trimmer* trimmer = makeOneTrimmer(oneStep, rp);
         trimmers.push_back(trimmer);
     }
 }

@@ -26,6 +26,7 @@ namespace rabbit
     {
         typedef rabbit::core::TDataQueue<rabbit::fq::FastqDataPairChunk> FastqDataPairChunkQueue;
         typedef rabbit::core::TDataQueue<rabbit::trim::PEWriterBuffer> PEWriterDataQueue;
+        typedef rabbit::core::TDataQueue<rabbit::trim::WriterBuffer> WriterDataQueue;
         typedef rabbit::core::TDataQueue<rabbit::log::TrimLogBuffer> TrimLogDataQueue;
 
         int  process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &logger);
@@ -33,6 +34,9 @@ namespace rabbit
         void consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, PEWriterDataQueue& dq2, TrimLogDataQueue& dq3, rabbit::log::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers);
         void writer_pe_task(rabbit::trim::RabbitTrimParam& rp, PEWriterDataQueue& dq2, rabbit::Logger& logger);
         void trimlog_pe_task(rabbit::trim::RabbitTrimParam& rp, TrimLogDataQueue& dq, rabbit::Logger& logger);
+
+        void consumer_pe_task2(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, PEWriterDataQueue& dq2, rabbit::log::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers);
+        void writer_pe_task2(rabbit::trim::RabbitTrimParam& rp, PEWriterDataQueue& dq2, rabbit::Logger& logger);
     } // namespace trim
     
 } // namespace rabbit
