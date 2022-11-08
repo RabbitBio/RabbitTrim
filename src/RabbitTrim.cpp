@@ -82,6 +82,8 @@ int main( int argc, char **argv) {
 
     kt_flag_pe->excludes(kt_flag_se)->needs(kt_option_f)->needs(kt_option_r);
     kt_flag_se->excludes(kt_flag_pe);
+    kt_option_f->check(CLI::ExistingPath);
+    kt_option_r->check(CLI::ExistingPath);
     kt_option_o->required();
     kt_option_t->check(CLI::PositiveNumber);
     kt_option_p->required();
@@ -112,17 +114,16 @@ int main( int argc, char **argv) {
     rp.minQual = minQual;
     rp.window = window;
 
-    rp.prepare();
-
 	double start,finish;
 	rabbit::Logger logger(true, true, quiet);
-    logger.infoln("using thread nums : " + std::to_string(threads));
 	start = rabbit::trim::util::getTime();
     if(app.got_subcommand(ktrim)){
         logger.infoln("run the subcommand : ktrim");
     }else{
         logger.infoln("run the subcommand : trimmomatic");
     }
+    logger.infoln("using thread nums : " + std::to_string(threads));
+    rp.prepare();
     
     if(isPE){
         rabbit::trim::process_pe(rp, logger);
