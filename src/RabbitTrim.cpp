@@ -90,7 +90,7 @@ int main( int argc, char **argv) {
     kt_option_l->check(CLI::PositiveNumber);
     kt_option_q->check(CLI::PositiveNumber);
     kt_option_w->check(CLI::PositiveNumber);
-    kt_option_k->check(CLI::IsMember(std::set<std::string>{"Illumina", "Nextera", "BGI"}));
+    kt_option_k->check(CLI::IsMember(std::set<std::string>{"Illumina", "Nextera", "BGI", "Transposase"}));
     kt_option_s->required();
     kt_option_stat->required();
 

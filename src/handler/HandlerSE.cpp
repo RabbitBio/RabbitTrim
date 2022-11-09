@@ -122,6 +122,11 @@ void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
     {
       if(rec.lorigin == 1) rstats.realHit++;
       if(rec.lorigin == 2) rstats.tailHit++;
+      if(rec.lorigin == 3)
+      {
+        rstats.realHit++;
+        rstats.dimer++;
+      }
       if(rec.lseq == 0)
       {
         rstats.readsDropped++;

@@ -356,40 +356,42 @@ void rabbit::trim::consumer_pe_task2(rabbit::trim::RabbitTrimParam& rp, rabbit::
       auto& rec2 = data[i + loaded];
       if(rec1.lorigin == 1) rstats.realHit++;
       if(rec1.lorigin == 2) rstats.tailHit++;
-      if(rec1.lseq == 0 && rec2.lseq == 0)
+      if(rec1.lorigin == 3) 
+      {
+        rstats.realHit++;
+        rstats.dimer++;
+      }
+      if(rec1.lseq == 0)
       {
         rstats.readsDropped++;
         continue;
       }
-      if(rec1.lseq && rec2.lseq)
-      {
-          rstats.readsSurvivingBoth++;
-          std::memcpy(wb->d1_p + pos1, (rec1.base + rec1.pname), rec1.lname);
-          pos1 += rec1.lname;
-          wb->d1_p[pos1++] = '\n';
-          std::memcpy(wb->d1_p + pos1, (rec1.base + rec1.pseq), rec1.lseq);
-          pos1 += rec1.lseq;
-          wb->d1_p[pos1++] = '\n';
-          std::memcpy(wb->d1_p + pos1, (rec1.base + rec1.pstrand), rec1.lstrand);
-          pos1 += rec1.lstrand;
-          wb->d1_p[pos1++] = '\n';
-          std::memcpy(wb->d1_p + pos1, (rec1.base + rec1.pqual), rec1.lqual);
-          pos1 += rec1.lqual;
-          wb->d1_p[pos1++] = '\n';
-          // reverse
-          std::memcpy(wb->d2_p + pos2, (rec2.base + rec2.pname), rec2.lname);
-          pos2 += rec2.lname;
-          wb->d2_p[pos2++] = '\n';
-          std::memcpy(wb->d2_p + pos2, (rec2.base + rec2.pseq), rec2.lseq);
-          pos2 += rec2.lseq;
-          wb->d2_p[pos2++] = '\n';
-          std::memcpy(wb->d2_p + pos2, (rec2.base + rec2.pstrand), rec2.lstrand);
-          pos2 += rec2.lstrand;
-          wb->d2_p[pos2++] = '\n';
-          std::memcpy(wb->d2_p + pos2, (rec2.base + rec2.pqual), rec2.lqual);
-          pos2 += rec2.lqual;
-          wb->d2_p[pos2++] = '\n';
-      }
+      rstats.readsSurvivingBoth++;
+      std::memcpy(wb->d1_p + pos1, (rec1.base + rec1.pname), rec1.lname);
+      pos1 += rec1.lname;
+      wb->d1_p[pos1++] = '\n';
+      std::memcpy(wb->d1_p + pos1, (rec1.base + rec1.pseq), rec1.lseq);
+      pos1 += rec1.lseq;
+      wb->d1_p[pos1++] = '\n';
+      std::memcpy(wb->d1_p + pos1, (rec1.base + rec1.pstrand), rec1.lstrand);
+      pos1 += rec1.lstrand;
+      wb->d1_p[pos1++] = '\n';
+      std::memcpy(wb->d1_p + pos1, (rec1.base + rec1.pqual), rec1.lqual);
+      pos1 += rec1.lqual;
+      wb->d1_p[pos1++] = '\n';
+      // reverse
+      std::memcpy(wb->d2_p + pos2, (rec2.base + rec2.pname), rec2.lname);
+      pos2 += rec2.lname;
+      wb->d2_p[pos2++] = '\n';
+      std::memcpy(wb->d2_p + pos2, (rec2.base + rec2.pseq), rec2.lseq);
+      pos2 += rec2.lseq;
+      wb->d2_p[pos2++] = '\n';
+      std::memcpy(wb->d2_p + pos2, (rec2.base + rec2.pstrand), rec2.lstrand);
+      pos2 += rec2.lstrand;
+      wb->d2_p[pos2++] = '\n';
+      std::memcpy(wb->d2_p + pos2, (rec2.base + rec2.pqual), rec2.lqual);
+      pos2 += rec2.lqual;
+      wb->d2_p[pos2++] = '\n';
     }
     wb->d1_p[pos1++] = '\0';
     wb->d2_p[pos2++] = '\0';

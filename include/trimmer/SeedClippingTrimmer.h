@@ -16,6 +16,7 @@ namespace rabbit
         class SeedClippingTrimmer : public Trimmer
         {
         private:
+            const int DIMER_INSERT = 1;
             int phred;
             double mismatch;
             int minQual;

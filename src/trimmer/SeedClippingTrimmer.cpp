@@ -119,7 +119,11 @@ void SeedClippingTrimmer::processSingleRecord(neoReference& rec)
     if(isFound){
       rec.lorigin = 1;
       if(pos >= minLen) rec.lseq = pos;
-      else rec.lseq = 0;
+      else
+      {
+        rec.lseq = 0;
+      if(pos <= DIMER_INSERT) rec.lorigin = 3; // 3 is real & dimer
+      }
       rec.lqual = rec.lseq;
       return;
     }
@@ -245,6 +249,7 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
       }
       if(isFound)
       {
+        // rec2 also found
         rec1.lorigin = 1;
         rec2.lorigin = 1;
         if(pos >= minLen){
@@ -253,6 +258,11 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
           rec2.lseq = pos;
           rec2.lqual = pos;
         }else{
+          if(pos <= DIMER_INSERT)
+          {
+            rec1.lorigin = 3;
+            rec2.lorigin = 3;
+          }
           rec1.lseq = 0;
           rec1.lqual = 0;
           rec2.lseq = 0;
