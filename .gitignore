@@ -4,3 +4,5 @@ testing_dataset/*.fq
 tmp
 inc
 tri
+io_old
+output

@@ -75,9 +75,9 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
       file_is_gz = true;
     }
     if(file_is_gz){
-      fqFileReader = new rabbit::fq::FastqFileReader(inputFiles[fileCnt],*fastqPool,"",true);
+      fqFileReader = new rabbit::fq::FastqFileReader(inputFiles[fileCnt],*fastqPool, true, "");
     }else{
-      fqFileReader = new rabbit::fq::FastqFileReader(inputFiles[fileCnt],*fastqPool,"",false);
+      fqFileReader = new rabbit::fq::FastqFileReader(inputFiles[fileCnt],*fastqPool, false, "");
     }
 
     while (true){

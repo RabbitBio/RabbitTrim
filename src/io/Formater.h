@@ -28,6 +28,7 @@ namespace fa {
 
 std::string getSequence(FastaDataChunk *&chunk, uint64 &pos);  // addbyxxm
 std::string getLine(FastaDataChunk *&chunk, uint64 &pos);
+int chunkListFormat(FastaChunk &fachunk, std::vector<Reference> &refs);
 int chunkFormat(FastaChunk &fachunk, std::vector<Reference> &refs);
 int chunkFormat(FastaChunk &fachunk, std::vector<Reference> &refs, int kmerSize);
 Reference getNextSeq(FastaChunk &fachunk, bool &done, uint64 &pos);
@@ -36,10 +37,11 @@ Reference getNextSeq(FastaChunk &fachunk, bool &done, uint64 &pos);
 
 namespace fq {
 
-int chunkFormat(FastqChunk *chunk, std::vector<Reference> &, bool);
-int chunkFormat(FastqChunk *chunk, std::vector<neoReference> &, bool);
-int chunkFormat(FastqDataChunk *fqChunk, std::vector<neoReference> &data, bool);
-int chunkFormat(FastqDataChunk *fqChunk, std::vector<Reference> &data, bool);
+int chunkFormat(FastqChunk *fqChunk, std::vector<Reference> &, bool);
+int chunkFormat(FastqChunk *fqChunk, std::vector<neoReference> &);
+int chunkFormat(FastqDataChunk *fqDataChunk, std::vector<neoReference> &data);
+int chunkFormat(FastqDataChunk *fqDataChunk, std::vector<neoReference> &data, bool mHasQuality);
+int chunkFormat(FastqDataChunk* fqDataChunk, std::vector<Reference> &data, bool mHasQuality);
 
 std::string getLine(FastqDataChunk *&chunk, int &pos);
 int neoGetLine(FastqDataChunk *&chunk, uint64_t &pos, uint64_t &len);

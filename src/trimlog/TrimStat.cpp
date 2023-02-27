@@ -111,6 +111,7 @@ void TrimStat::printPE(std::string filename){
 }
 
 
+// ktrim
 void TrimStat::print(std::string filename){
     const char* path = filename.c_str();
     std::ofstream fout(path);

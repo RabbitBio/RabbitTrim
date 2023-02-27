@@ -140,6 +140,7 @@ uint64* IlluminaMediumClippingSeq::packSeqExternal(Reference& rec){
     return out;
 }
 uint64* IlluminaMediumClippingSeq::packSeqExternal(neoReference& rec){ 
+    // TODO Vectorize
     int len = rec.lseq;
     char* rec_seq = (char*) (rec.base + rec.pseq);
     uint64* out = new uint64[len];

@@ -118,12 +118,12 @@ int main( int argc, char **argv) {
 	rabbit::Logger logger(true, true, quiet);
 	start = rabbit::trim::util::getTime();
     if(app.got_subcommand(ktrim)){
+        rp.prepare();
         logger.infoln("run the subcommand : ktrim");
     }else{
         logger.infoln("run the subcommand : trimmomatic");
     }
     logger.infoln("using thread nums : " + std::to_string(threads));
-    rp.prepare();
     
     if(isPE){
         rabbit::trim::process_pe(rp, logger);

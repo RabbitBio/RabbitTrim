@@ -15,6 +15,7 @@ namespace rabbit
         struct RabbitTrimParam{
             RabbitTrimParam() = default;
             void prepare(){
+                // set seqKit of Ktrim
                 if(seqKit.size() || (seqA.size() == 0 && seqB.size() == 0)){
                     // use built-in adapter
                     std::pair<std::string, std::string> seq = rabbit::trim::util::getBuiltInAdapter(seqKit);

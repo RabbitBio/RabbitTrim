@@ -91,13 +91,13 @@ int rabbit::trim::producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
     p = rp.reverseFiles[fileCnt].c_str();
     if( p[i]=='.' && p[i+1]=='g' && p[i+2]=='z' ){
       if(file_is_gz){
-        fqFileReader = new rabbit::fq::FastqFileReader(rp.forwardFiles[fileCnt], *fastqPool, rp.reverseFiles[fileCnt], true);
+        fqFileReader = new rabbit::fq::FastqFileReader(rp.forwardFiles[fileCnt], *fastqPool, true, rp.reverseFiles[fileCnt]);
       }else{
         fprintf(stderr,"\033[1;31mError: file %s and %s must have same file type!\033[0m\n",rp.forwardFiles[fileCnt].c_str(),rp.reverseFiles[fileCnt].c_str());
       }
     }else{
       if(!file_is_gz){
-        fqFileReader = new rabbit::fq::FastqFileReader(rp.forwardFiles[fileCnt], *fastqPool, rp.reverseFiles[fileCnt], false);
+        fqFileReader = new rabbit::fq::FastqFileReader(rp.forwardFiles[fileCnt], *fastqPool, false, rp.reverseFiles[fileCnt]);
       }else{
         fprintf(stderr,"\033[1;31mError: file %s and %s must have same file type!\033[0m\n",rp.forwardFiles[fileCnt].c_str(),rp.reverseFiles[fileCnt].c_str());
       }
