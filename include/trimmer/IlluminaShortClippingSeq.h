@@ -6,6 +6,8 @@
 #include <assert.h>
 #include <set>
 #include <vector>
+#include <algorithm>
+#include "robin_hood.h"
 
 namespace rabbit
 {
@@ -22,12 +24,14 @@ namespace rabbit
                     int readsSeqCompare(neoReference& rec);
 
                     int packCh(char ch, bool reverse);
-                    uint64 calcSingleMask(int length);
+                    inline uint64 calcSingleMask(int length);
                     float calculateMaximumRange(float* vals, int valsLen);
 
                     uint64* packSeqExternal(Reference& rec);
                     float calculateDifferenceQuality(Reference& rec, int overlap, int recOffset);
                     int readsSeqCompare(Reference& rec);
+                    unsigned long long cnt = 0;
+                    unsigned long long total = 0;
                 private:
                     rabbit::Logger& logger;
                     int phred;

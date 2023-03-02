@@ -373,9 +373,58 @@ void IlluminaClippingTrimmer::processRecords(std::vector<neoReference>& recs, bo
         }
     }
     else{
-        for(neoReference& rec : recs){
-            processSingleRecord(rec, isReverse);
-        }
-        
+      for(neoReference& rec : recs){
+        processSingleRecord(rec, isReverse);
+      }
+
+      // remove virtual function
+      // rabbit::trim::IlluminaShortClippingSeq* iter = dynamic_cast<rabbit::trim::IlluminaShortClippingSeq*>(forwardSeqs[0]);
+      // for(neoReference& rec : recs){
+      //   int toKeepLength = rec.lseq; 
+      //   int toKeep = iter -> readsSeqCompare(rec);
+      //   toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
+      //   rec.lseq = std::max(0, toKeepLength);
+      // }
+
+
+      // if(!isReverse){
+      //   for(auto& iter : forwardSeqs){
+      //     for(neoReference& rec : recs){
+      //       int toKeepLength = rec.lseq; 
+      //       int toKeep = iter -> readsSeqCompare(rec);
+      //       toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
+      //       rec.lseq = std::max(0, toKeepLength);
+      //       rec.lqual = rec.lseq;
+      //     }
+
+      //   }
+      // }
+      // else{
+      //   for(auto& iter : reverseSeqs){
+      //     for(neoReference& rec : recs){
+      //       int toKeepLength = rec.lseq; 
+      //       int toKeep = iter -> readsSeqCompare(rec);
+      //       toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
+      //       rec.lseq = std::max(0, toKeepLength);
+      //       rec.lqual = rec.lseq;
+      //     }
+      //   }
+      // }
+
+      // // common
+      // for(auto& iter : commonSeqs){
+      //   for(neoReference& rec : recs){
+      //     int toKeepLength = rec.lseq; 
+      //     int toKeep = iter -> readsSeqCompare(rec);
+      //     toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
+      //     rec.lseq = std::max(0, toKeepLength);
+      //     rec.lqual = rec.lseq;
+      //   }
+      // }
+
     }
+}
+void IlluminaClippingTrimmer::printCnt(){
+  logger.infoln("repeat offset nums : " + std::to_string(dynamic_cast<rabbit::trim::IlluminaShortClippingSeq*>(forwardSeqs[0]) ->cnt));
+  logger.infoln("total offset nums : " + std::to_string(dynamic_cast<rabbit::trim::IlluminaShortClippingSeq*>(forwardSeqs[0]) ->total));
 }

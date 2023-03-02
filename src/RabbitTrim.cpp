@@ -51,7 +51,7 @@ int main( int argc, char **argv) {
     trimm_option_f->check(CLI::ExistingPath);
     trimm_option_r->check(CLI::ExistingPath);
     trimm_option_o->required();
-    trimm_option_l->required();
+    // trimm_option_l->required();
     trimm_option_stat->required();
     trimm_option_s->required();
     trimm_option_c->check(CLI::Range(1, 9).description("compression level is limited to be between 1 and 9"));

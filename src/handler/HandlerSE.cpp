@@ -1,3 +1,4 @@
+#include "util.h"
 #include "handler/HandlerSE.h"
 
 using namespace rabbit::trim;
@@ -57,6 +58,8 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   totalStat -> merge(statsArr);
   if(rp.seqA.size()) totalStat -> print(rp.stats);
   else totalStat -> printSE(rp.stats);
+  // auto aa = dynamic_cast<rabbit::trim::IlluminaClippingTrimmer*>(trimmers[0]);
+  // aa -> printCnt();
   return 0;
 }
 
@@ -95,13 +98,13 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
 
 
 // comusmer task
-void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterDataQueue& dq2, TrimLogDataQueue& dq3, rabbit::log::TrimStat& rstats,
-    const std::vector<rabbit::trim::Trimmer*>& trimmers)
+void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterDataQueue& dq2, TrimLogDataQueue& dq3, rabbit::log::TrimStat& rstats, const std::vector<rabbit::trim::Trimmer*>& trimmers)
 {
   bool isReverse = rp.reverseFiles.size();
   bool isLog = rp.trimLog.size();
   rabbit::int64 chunk_id;
   rabbit::fq::FastqChunk* fqChunk = new rabbit::fq::FastqChunk;
+  // IlluminaClippingTrimmer* trimmer = dynamic_cast<IlluminaClippingTrimmer*>(trimmers[0]);
   while(dq.Pop(chunk_id,fqChunk->chunk))
   {
     // std::vector<Reference> data;
@@ -109,8 +112,9 @@ void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
     data.reserve(1e4);
     int loaded  = rabbit::fq::chunkFormat(fqChunk->chunk, data, true);
     rstats.readsInput += loaded;
+    
     for(auto trimmer : trimmers){
-      trimmer -> processRecords(data, false, isReverse);
+       trimmer -> processRecords(data, false, isReverse);
     }
 
     // copy data to WriterBuffer 

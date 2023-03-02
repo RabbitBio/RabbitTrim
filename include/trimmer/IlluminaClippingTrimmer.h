@@ -32,6 +32,7 @@ namespace rabbit
                     void processSingleRecord(neoReference& rec, bool isReverse = false);
                     void processPairRecord(neoReference& rec1, neoReference& rec2);
                     void processRecords(std::vector<neoReference>& recs, bool isPair = false, bool isReverse = false);
+                    void printCnt();
                 private:
                     const std::string PREFIX = "Prefix";
                     const std::string SUFFIX_F = "/1";
