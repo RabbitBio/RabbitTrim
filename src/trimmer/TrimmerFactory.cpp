@@ -44,7 +44,7 @@ Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, rabbit::trim::RabbitTr
             }
         }
         
-        return new IlluminaClippingTrimmer(logger, phred, fastaAdapterFile, seedMaxMiss, minPalindromeLikelihood, minSequenceLikelihood, minPrefix, palindromeKeepBoth);
+        return new IlluminaClippingTrimmer(logger, phred, fastaAdapterFile, seedMaxMiss, minPalindromeLikelihood, minSequenceLikelihood, minPrefix, palindromeKeepBoth, rp.threads);
     }
     if(trimmerName.compare("LEADING") == 0) {
         int qual = std::stoi(trimmerArgs, nullptr);

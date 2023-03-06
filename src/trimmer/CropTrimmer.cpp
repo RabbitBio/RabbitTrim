@@ -26,3 +26,8 @@ void CropTrimmer::processRecords(std::vector<neoReference>& recs, bool isPair, b
         processOneRecord(rec);
     }
 }
+void CropTrimmer::processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}

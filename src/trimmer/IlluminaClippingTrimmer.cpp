@@ -3,7 +3,7 @@
 using namespace rabbit::trim;
 
 
-IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int phred_, std::string fastaAdapterFile, int seedMaxMiss_, int minPalindromeLikelihood_, int minSequenceLikelihood_, int minPrefix_, bool  palindromeKeepBoth_) : logger(logger_){
+IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int phred_, std::string fastaAdapterFile, int seedMaxMiss_, int minPalindromeLikelihood_, int minSequenceLikelihood_, int minPrefix_, bool  palindromeKeepBoth_, int consumerNum_) : logger(logger_){
     phred = phred_;
     // adapter file 
     std::ifstream fastaAdapter(fastaAdapterFile.c_str(), std::ifstream::in);
@@ -17,6 +17,7 @@ IlluminaClippingTrimmer::IlluminaClippingTrimmer(rabbit::Logger& logger_, int ph
     minSequenceLikelihood = minSequenceLikelihood_;
     minPrefix = minPrefix_;
     palindromeKeepBoth = palindromeKeepBoth_;
+    consumerNum = consumerNum_;
     
     minSequenceOverlap = (int)(minSequenceLikelihood / LOG10_4);
     minSequenceOverlap = minSequenceOverlap > 15 ? 15 : minSequenceOverlap; // TODO 15 是依据什么呢？ 
@@ -104,14 +105,14 @@ std::vector<std::string> tokens = rabbit::trim::util::split(fullName, "[\\| ]");
         else{
             uniqueSeq.insert(sequence);
             if(sequence.size() < 16){
-                IlluminaClippingSeq* clippingSeq = new IlluminaShortClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
+                IlluminaClippingSeq* clippingSeq = new IlluminaShortClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap, consumerNum_);
                 forwardSeqs.emplace_back(clippingSeq);
             }else{
                 if(sequence.size() < 24){
-                    IlluminaClippingSeq* clippingSeq = new IlluminaMediumClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
+                    IlluminaClippingSeq* clippingSeq = new IlluminaMediumClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap, consumerNum_);
                     forwardSeqs.emplace_back(clippingSeq);
                 }else{
-                    IlluminaClippingSeq* clippingSeq = new IlluminaLongClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
+                    IlluminaClippingSeq* clippingSeq = new IlluminaLongClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap, consumerNum_);
                     forwardSeqs.emplace_back(clippingSeq);
                 }
             }
@@ -127,14 +128,14 @@ std::vector<std::string> tokens = rabbit::trim::util::split(fullName, "[\\| ]");
         else{
             uniqueSeq.insert(sequence);
             if(sequence.size() < 16){
-                IlluminaClippingSeq* clippingSeq = new IlluminaShortClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
+                IlluminaClippingSeq* clippingSeq = new IlluminaShortClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap, consumerNum_);
                 reverseSeqs.emplace_back(clippingSeq);
             }else{
                 if(sequence.size() < 24){
-                    IlluminaClippingSeq* clippingSeq = new IlluminaMediumClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
+                    IlluminaClippingSeq* clippingSeq = new IlluminaMediumClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap, consumerNum_);
                     reverseSeqs.emplace_back(clippingSeq);
                 }else{
-                    IlluminaClippingSeq* clippingSeq = new IlluminaLongClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
+                    IlluminaClippingSeq* clippingSeq = new IlluminaLongClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap, consumerNum_);
                     reverseSeqs.emplace_back(clippingSeq);
                 }
             }
@@ -149,14 +150,14 @@ std::vector<std::string> tokens = rabbit::trim::util::split(fullName, "[\\| ]");
         else{
             uniqueSeq.insert(sequence);
             if(sequence.size() < 16){
-                IlluminaClippingSeq* clippingSeq = new IlluminaShortClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
+                IlluminaClippingSeq* clippingSeq = new IlluminaShortClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap, consumerNum_);
                 commonSeqs.emplace_back(clippingSeq);
             }else{
                 if(sequence.size() < 24){
-                    IlluminaClippingSeq* clippingSeq = new IlluminaMediumClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
+                    IlluminaClippingSeq* clippingSeq = new IlluminaMediumClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap, consumerNum_);
                     commonSeqs.emplace_back(clippingSeq);
                 }else{
-                    IlluminaClippingSeq* clippingSeq = new IlluminaLongClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap);
+                    IlluminaClippingSeq* clippingSeq = new IlluminaLongClippingSeq(logger, phred, sequence, seedMaxMiss,  minSequenceLikelihood,  minSequenceOverlap, consumerNum_);
                     commonSeqs.emplace_back(clippingSeq);
                 }
             }
@@ -221,6 +222,35 @@ void IlluminaClippingTrimmer::processSingleRecord(neoReference& rec, bool isReve
     // common
     for(auto& iter : commonSeqs){
         int toKeep = iter -> readsSeqCompare(rec);
+        toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
+    }
+
+    if(toKeepLength > 0){
+        rec.lseq = toKeepLength;
+    }else{
+        rec.lseq = 0; // when offset less than zero
+    }
+    rec.lqual = rec.lseq;
+}
+
+void IlluminaClippingTrimmer::processSingleRecord(neoReference& rec, int threadId, bool isReverse){
+    int toKeepLength = rec.lseq; 
+    if(!isReverse){
+        for(auto& iter : forwardSeqs){
+            int toKeep = iter -> readsSeqCompare(rec, threadId);
+            toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
+        }
+    }
+    else{
+        for(auto& iter : reverseSeqs){
+            int toKeep = iter -> readsSeqCompare(rec, threadId);
+            toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
+        }
+    }
+    
+    // common
+    for(auto& iter : commonSeqs){
+        int toKeep = iter -> readsSeqCompare(rec, threadId);
         toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
     }
 
@@ -344,6 +374,62 @@ void IlluminaClippingTrimmer::processPairRecord(neoReference& rec1, neoReference
     
 }
 
+void IlluminaClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& rec2, int threadId){
+    int toKeepForward = rec1.lseq;
+    int toKeepReverse = rec2.lseq;
+    int toKeep;
+    for(auto& iter : prefixPairs){
+        toKeep = iter -> palindromeReadsCompare(rec1, rec2);
+        if(toKeep != (1 << 30)){
+          toKeepForward = (toKeep < toKeepForward) ? toKeep : toKeepForward;
+          if(palindromeKeepBoth){
+            toKeepReverse = (toKeep < toKeepReverse) ? toKeep : toKeepReverse;
+          }else{
+            toKeepReverse = 0;
+          }
+        }
+    }
+
+    assert(toKeepForward >= 0);
+    if(toKeepForward > 0){
+        for(auto& iter : forwardSeqs){
+            toKeep = iter -> readsSeqCompare(rec1, threadId);
+            toKeepForward = toKeep < toKeepForward ? toKeep : toKeepForward;
+        }
+        for(auto& iter : commonSeqs){
+            toKeep = iter -> readsSeqCompare(rec1, threadId);
+            toKeepForward = toKeep < toKeepForward ? toKeep : toKeepForward;
+        }
+    }
+
+    assert(toKeepReverse >= 0);
+    if(toKeepReverse > 0){
+        for(auto& iter : reverseSeqs){
+            toKeep = iter -> readsSeqCompare(rec2, threadId);
+            toKeepReverse = toKeep < toKeepReverse ? toKeep : toKeepReverse;
+        }
+        for(auto& iter : commonSeqs){
+            toKeep = iter -> readsSeqCompare(rec2, threadId);
+            toKeepReverse = toKeep < toKeepReverse ? toKeep : toKeepReverse;
+        }
+    }
+
+    if(toKeepForward > 0){
+        rec1.lseq = toKeepForward;
+    }else{
+        rec1.lseq = 0;
+    }
+    
+    if(toKeepReverse > 0){
+        rec2.lseq = toKeepReverse;
+    }else{
+        rec2.lseq = 0;
+    }
+    rec1.lqual = rec1.lseq;
+    rec2.lqual = rec2.lseq;
+    
+}
+
 void IlluminaClippingTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse){
     if(isPair){
         int n = recs.size() / 2;
@@ -424,6 +510,26 @@ void IlluminaClippingTrimmer::processRecords(std::vector<neoReference>& recs, bo
 
     }
 }
+
+void IlluminaClippingTrimmer::processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse){
+    if(isPair){
+        int n = recs.size() / 2;
+        ASSERT(n * 2 == recs.size());
+        for(int i = 0; i < n; i++){
+            neoReference& rec1 = recs[i];
+            neoReference& rec2 = recs[i + n];
+            // processPairRecord(rec1, rec2);
+            processPairRecord(rec1, rec2, threadId);
+        }
+    }
+    else{
+      for(neoReference& rec : recs){
+        // processSingleRecord(rec, isReverse);
+        processSingleRecord(rec, threadId, isReverse);
+      }
+    }
+}
+
 void IlluminaClippingTrimmer::printCnt(){
   logger.infoln("repeat offset nums : " + std::to_string(dynamic_cast<rabbit::trim::IlluminaShortClippingSeq*>(forwardSeqs[0]) ->cnt));
   logger.infoln("total offset nums : " + std::to_string(dynamic_cast<rabbit::trim::IlluminaShortClippingSeq*>(forwardSeqs[0]) ->total));

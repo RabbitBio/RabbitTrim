@@ -38,3 +38,8 @@ void BaseCountTrimmer::processRecords(std::vector<neoReference>& recs, bool isPa
         processOneRecord(rec);
     }
 }
+void BaseCountTrimmer::processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}

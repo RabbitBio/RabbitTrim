@@ -20,6 +20,7 @@ namespace rabbit
             void processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse);
             void processOneRecord(neoReference& rec);
             void processRecords(std::vector<neoReference>& recs, bool isPair, bool isReverse);
+            void processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse);
         };
         
         LowQualityTrimmer::LowQualityTrimmer(int quality_, int window_, int phred_)

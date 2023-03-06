@@ -34,6 +34,7 @@ namespace rabbit
             void processPairRecord(neoReference& rec1, neoReference& rec2);
             void processOneRecord(neoReference& rec);
             void processRecords(std::vector<neoReference>& recs, bool isPair, bool isReverse);
+            void processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse);
             inline bool is_revcomp(char a, char b);
         };
         

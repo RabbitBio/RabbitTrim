@@ -36,3 +36,8 @@ void HeadCropTrimmer::processRecords(std::vector<neoReference>& recs, bool isPai
         processOneRecord(rec);
     }
 }
+void HeadCropTrimmer::processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}

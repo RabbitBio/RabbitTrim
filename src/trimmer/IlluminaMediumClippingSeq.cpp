@@ -4,7 +4,7 @@
 using namespace rabbit::trim;
 
 
-IlluminaMediumClippingSeq::IlluminaMediumClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_) :logger(logger_){
+IlluminaMediumClippingSeq::IlluminaMediumClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_, int consumerNum_) :logger(logger_){
     logger.infoln("Using Medium Clipping Sequence: '" + seq_ + "'");
     phred = phred_;
     seq = seq_;
@@ -13,6 +13,7 @@ IlluminaMediumClippingSeq::IlluminaMediumClippingSeq(rabbit::Logger& logger_, in
     seedMax = seedMaxMiss * 2;
     minSequenceLikelihood = minSequenceLikelihood_;
     minSequenceOverlap = minSequenceOverlap_;
+    consumerNum = consumerNum_;
     // packSeqInternal 
     pack = new uint64[seqLen - 15]; // seqLen - 16 + 1
     uint64 pack_ = 0ULL;
@@ -21,11 +22,13 @@ IlluminaMediumClippingSeq::IlluminaMediumClippingSeq(rabbit::Logger& logger_, in
         pack_ = (pack_ << 4) | tmp;
         if(i >= 15) pack[i - 15] = pack_;
     }
-    
 
+    recPacks = new uint64[rabbit::trim::MAX_READ_LENGTH * consumerNum_];
 }
+
 IlluminaMediumClippingSeq::~IlluminaMediumClippingSeq(){
     delete [] pack;
+    delete [] recPacks;
 }
 
 int IlluminaMediumClippingSeq::readsSeqCompare(Reference& rec){
@@ -107,6 +110,50 @@ int IlluminaMediumClippingSeq::readsSeqCompare(neoReference& rec){
     return 1 << 30;
 }
 
+int IlluminaMediumClippingSeq::readsSeqCompare(neoReference& rec, int threadId){
+    std::set<int> offsetSet;
+    // packSeqExternal(rec)
+    uint64* packRec = packSeqExternal(rec);
+    uint64* packClip = pack; 
+
+    int packRecLen = rec.lseq;
+    int packRecMax = packRecLen - minSequenceOverlap;
+    int packClipMax = seqLen - 15; // pack.length Note：pack is produced by 'packSeqInternal'
+
+    // std::cout << "seedMax: " << seedMax << std::endl;
+    
+    for(int i = 0; i < packRecMax; i++){
+        uint64 comboMask = calcSingleMask(packRecLen - i);
+        for(int j = 0; j < packClipMax; j++){
+            int diff = __builtin_popcountll((packRec[i] ^ pack[j]) & comboMask);
+            if(diff <= seedMax){
+                int offset = i - j;
+                offsetSet.emplace(offset);
+                // std::cout << "add offset : " << offset << std::endl;
+            }
+            // std::cout << "i: " << i << " j: " << j << " ";
+            // std::cout << "comboMask: " << std::setbase(16) << comboMask << " ";
+            // std::cout << "packRec: " << packRec[i] << " ";
+            // std::cout << "packClip: " << packClip[j] << " ";
+            // std::cout << "diff: " << std::setbase(10) << diff << std::endl;
+        }
+    }
+
+    // Iterate through offsetSet from smallest to largest
+    for(auto iter = offsetSet.begin(); iter != offsetSet.end(); iter++){
+        int offset = *iter;
+        int recCompLength = offset > 0 ? rec.lseq - offset : rec.lseq;
+        int clipCompLength = offset < 0 ? seqLen + offset : seqLen;
+        int compLength = recCompLength < clipCompLength ? recCompLength : clipCompLength;
+        
+        assert(compLength > minSequenceOverlap);
+        float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset);
+        if(seqLikelihood >= minSequenceLikelihood) return offset;
+    }
+    // return std::INT_MAX;
+    return 1 << 30;
+}
+
 
 int IlluminaMediumClippingSeq::packCh(char ch){
     switch (ch)
@@ -140,6 +187,23 @@ uint64* IlluminaMediumClippingSeq::packSeqExternal(Reference& rec){
     return out;
 }
 uint64* IlluminaMediumClippingSeq::packSeqExternal(neoReference& rec){ 
+    // TODO Vectorize
+    int len = rec.lseq;
+    char* rec_seq = (char*) (rec.base + rec.pseq);
+    uint64* out = new uint64[len];
+    uint64 pack = 0ULL;
+
+    for(int i = 0; i < len + 15; i++){
+        uint64 tmp = 0;
+        if(i < len)
+            tmp = packCh(rec_seq[i]);
+        pack = (pack << 4) | tmp;
+        if(i >= 15) out[i - 15] = pack;
+    }
+    return out;
+}
+
+uint64* IlluminaMediumClippingSeq::packSeqExternal(neoReference& rec, int threadId){ 
     // TODO Vectorize
     int len = rec.lseq;
     char* rec_seq = (char*) (rec.base + rec.pseq);

@@ -8,6 +8,7 @@
 #include <vector>
 #include <algorithm>
 #include "robin_hood.h"
+#include "param.h"
 
 namespace rabbit
 {
@@ -16,12 +17,15 @@ namespace rabbit
         // seq.length < 16
         class IlluminaShortClippingSeq : public IlluminaClippingSeq {
                 public:
-                    IlluminaShortClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_);
+                    IlluminaShortClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_, int consumerNum_);
                     ~IlluminaShortClippingSeq();
                     
                     uint64* packSeqExternal(neoReference& rec);
                     float calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset);
                     int readsSeqCompare(neoReference& rec);
+
+                    uint64* packSeqExternal(neoReference& rec, int threadId);
+                    int readsSeqCompare(neoReference& rec, int threadId);
 
                     int packCh(char ch, bool reverse);
                     inline uint64 calcSingleMask(int length);
@@ -43,6 +47,8 @@ namespace rabbit
                     int seedMaxMiss;
                     int minSequenceLikelihood;
                     int minSequenceOverlap;
+                    int consumerNum;
+                    uint64* recPacks; // storage the rec pack for each thread
 
         };
     } // namespace trim

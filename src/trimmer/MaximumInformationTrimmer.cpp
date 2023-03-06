@@ -133,3 +133,8 @@ void MaximumInformationTrimmer::processRecords(std::vector<neoReference>& recs, 
         processOneRecord(rec);
     }
 }
+void MaximumInformationTrimmer::processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}

@@ -334,3 +334,20 @@ void SeedClippingTrimmer::processRecords(std::vector<neoReference>& recs, bool i
   }
 }
 
+void SeedClippingTrimmer::processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse)
+{
+  if(isPair){
+    int n = recs.size() / 2;
+    ASSERT(recs.size() == n * 2);
+    for(int i = 0; i < n; i++){
+      neoReference& rec1 = recs[i];
+      neoReference& rec2 = recs[i + n];
+      processPairRecord(rec1, rec2);
+    }
+  }else{
+    for(auto& rec : recs){
+      processSingleRecord(rec);
+    }
+  }
+}
+

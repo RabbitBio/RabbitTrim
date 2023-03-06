@@ -23,3 +23,8 @@ void MinLenTrimmer::processRecords(std::vector<neoReference>& recs, bool isPair,
         processOneRecord(rec);
     }
 }
+void MinLenTrimmer::processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}

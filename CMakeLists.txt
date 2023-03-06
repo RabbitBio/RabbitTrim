@@ -8,7 +8,7 @@ set(EXECUTABLE_OUTPUT_PATH .)
 set(CMAKE_CXX_COMPILER "/usr/bin/g++")
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(COMMON_FLAGS "-O3 -march=native -fopt-info-vec")
+set(COMMON_FLAGS "-O3 -march=native -fopt-info-vec -g")
 
 option(USE_OMP "Specify whether to use openMP" OFF)
 

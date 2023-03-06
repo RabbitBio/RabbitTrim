@@ -30,3 +30,8 @@ void TailCropTrimmer::processRecords(std::vector<neoReference>& recs, bool isPai
         processOneRecord(rec);
     }
 }
+void TailCropTrimmer::processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}

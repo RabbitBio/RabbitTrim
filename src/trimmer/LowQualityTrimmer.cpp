@@ -20,3 +20,9 @@ void LowQualityTrimmer::processRecords(std::vector<neoReference>& recs, bool isP
         processOneRecord(rec);
     }
 }
+void LowQualityTrimmer::processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse)
+{
+    for(auto& rec : recs){
+        processOneRecord(rec);
+    }
+}

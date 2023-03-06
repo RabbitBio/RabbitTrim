@@ -6,6 +6,7 @@
 #include <string>
 #include <assert.h>
 #include <set>
+#include "param.h"
 
 namespace rabbit
 {
@@ -14,7 +15,7 @@ namespace rabbit
         typedef unsigned long long uint64;
         class IlluminaLongClippingSeq : public IlluminaClippingSeq {
                 public:
-                    IlluminaLongClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_);
+                    IlluminaLongClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_, int consumerNum_);
                     ~IlluminaLongClippingSeq();
                     
                     int packCh(char ch);
@@ -29,6 +30,9 @@ namespace rabbit
                     float calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset);
                     int readsSeqCompare(neoReference& rec);
 
+                    uint64* packSeqExternal(neoReference& rec, int threadId);
+                    int readsSeqCompare(neoReference& rec, int threadId);
+
                 private:
                     rabbit::Logger logger;
                     int phred;
@@ -40,6 +44,8 @@ namespace rabbit
                     int seedMaxMiss;
                     int minSequenceLikelihood;
                     int minSequenceOverlap;
+                    int consumerNum;
+                    uint64* recPacks;
 
 
             

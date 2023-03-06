@@ -11,6 +11,7 @@ namespace rabbit
     {
         const int MEM_PER_CHUNK = 1 << 22; // size of chunk
         const int MEM_PER_TRIMLOG_BUFFER = 1 << 20; // size of chunk
+        const int MAX_READ_LENGTH = 512;
 
         struct RabbitTrimParam{
             RabbitTrimParam() = default;

@@ -22,3 +22,8 @@ void MaxLenTrimmer::processRecords(std::vector<neoReference>& recs, bool isPair,
         processOneRecord(rec);
     }
 }
+void MaxLenTrimmer::processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}

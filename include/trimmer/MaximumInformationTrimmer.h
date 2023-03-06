@@ -22,6 +22,7 @@ namespace rabbit
                 void processRecords(std::vector<Reference>& recs, bool isPair = false, bool isReverse = false);
                 void processOneRecord(neoReference& rec);
                 void processRecords(std::vector<neoReference>& recs, bool isPair = false, bool isReverse = false);
+                void processRecords(std::vector<neoReference>& recs, int threadId, bool isPair = false, bool isReverse = false);
 
             private:
                 int phred;

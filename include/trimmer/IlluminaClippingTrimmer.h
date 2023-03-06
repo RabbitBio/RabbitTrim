@@ -20,7 +20,7 @@ namespace rabbit
     {
         class IlluminaClippingTrimmer : public Trimmer{
                 public:
-                    IlluminaClippingTrimmer(rabbit::Logger& logger_, int phred_, std::string fastaAdapterFile, int seedMaxMiss_, int minPalindromeLikelihood_, int minSequenceLikelihood_, int minPrefix_ = 8, bool palindromeKeepBoth_ = false);
+                    IlluminaClippingTrimmer(rabbit::Logger& logger_, int phred_, std::string fastaAdapterFile, int seedMaxMiss_, int minPalindromeLikelihood_, int minSequenceLikelihood_, int minPrefix_ = 8, bool palindromeKeepBoth_ = false, int consumerNum_ = 1);
                     ~IlluminaClippingTrimmer();
                     
                     void processOneRecord(Reference& rec);
@@ -32,6 +32,11 @@ namespace rabbit
                     void processSingleRecord(neoReference& rec, bool isReverse = false);
                     void processPairRecord(neoReference& rec1, neoReference& rec2);
                     void processRecords(std::vector<neoReference>& recs, bool isPair = false, bool isReverse = false);
+
+                    void processSingleRecord(neoReference& rec, int threadId, bool isReverse = false);
+                    void processPairRecord(neoReference& rec1, neoReference& rec2, int threadId);
+                    void processRecords(std::vector<neoReference>& recs, int threadId, bool isPair = false, bool isReverse = false);
+
                     void printCnt();
                 private:
                     const std::string PREFIX = "Prefix";
@@ -52,6 +57,7 @@ namespace rabbit
                     int minSequenceOverlap;
                     int minPrefix;
                     bool palindromeKeepBoth;
+                    int consumerNum;
                     
                     std::vector<IlluminaPrefixPair*> prefixPairs;
                     std::vector<IlluminaClippingSeq*> forwardSeqs;

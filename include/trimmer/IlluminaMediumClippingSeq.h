@@ -6,6 +6,7 @@
 #include <set>
 #include <limits.h>
 #include <cassert>
+#include "param.h"
 
 namespace rabbit
 {
@@ -14,7 +15,7 @@ namespace rabbit
         // 16 <= seq.length() < 24
         class IlluminaMediumClippingSeq : public IlluminaClippingSeq{
                 public:
-                    IlluminaMediumClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_);
+                    IlluminaMediumClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_, int consumerNum_);
                     ~IlluminaMediumClippingSeq();
 
                     uint64* packSeqExternal(Reference& rec);
@@ -24,6 +25,9 @@ namespace rabbit
                     uint64* packSeqExternal(neoReference& rec);
                     float calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset);
                     int readsSeqCompare(neoReference& rec);
+
+                    uint64* packSeqExternal(neoReference& rec, int threadId);
+                    int readsSeqCompare(neoReference& rec, int threadId);
 
                     int packCh(char ch);
                     uint64 calcSingleMask(int length);
@@ -39,6 +43,8 @@ namespace rabbit
                     int seedMaxMiss;
                     int minSequenceLikelihood;
                     int minSequenceOverlap;
+                    int consumerNum;
+                    uint64* recPacks;
                     
         };
     } // namespace trim

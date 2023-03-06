@@ -103,3 +103,8 @@ void SlidingWindowTrimmer::processRecords(std::vector<neoReference>& recs, bool 
         processOneRecord(rec);
     }
 }
+void SlidingWindowTrimmer::processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}

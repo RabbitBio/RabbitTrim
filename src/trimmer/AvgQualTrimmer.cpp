@@ -45,3 +45,9 @@ void AvgQualTrimmer::processRecords(std::vector<neoReference>& recs, bool isPair
         processOneRecord(rec);
     }
 }
+
+void AvgQualTrimmer::processRecords(std::vector<neoReference>& recs, int threadId, bool isPair, bool isReverse){
+    for(neoReference& rec : recs){
+        processOneRecord(rec);
+    }
+}
