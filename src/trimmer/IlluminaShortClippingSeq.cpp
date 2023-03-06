@@ -73,13 +73,14 @@ IlluminaShortClippingSeq::IlluminaShortClippingSeq(rabbit::Logger& logger_, int 
     for(int i = 0; i < 15 + seqLen ; i++){
         int tmp = 0;
         if(i < seqLen)
-            tmp = packCh(seq.at(i), false);
+            // tmp = packCh(seq.at(i), false);
+          tmp = (1 << ((seq[i] >> 1) & 7)) & 15;
         pack_ = (pack_ << 4) | tmp; 
         if(i >= 15) pack[i - 15] = pack_;
     }
     
     // for each thread, create one rec pack
-    recPacks = new uint64[(rabbit::trim::MAX_READ_LENGTH) * consumerNum_];
+    recPacks = new uint64[(rabbit::trim::MAX_READ_LENGTH + 15) * consumerNum_];
 }
 
 IlluminaShortClippingSeq::~IlluminaShortClippingSeq(){
@@ -407,17 +408,37 @@ uint64* IlluminaShortClippingSeq::packSeqExternal(neoReference& rec){
 uint64* IlluminaShortClippingSeq::packSeqExternal(neoReference& rec, int threadId){ 
   int len = rec.lseq;
   char* rec_seq = (char*)(rec.base +  rec.pseq);
-  uint64* out = recPacks + threadId * MAX_READ_LENGTH;
+  uint64* out = recPacks + threadId * (MAX_READ_LENGTH + 15);
   uint64 pack = 0ULL;
 
-  for(int i = 0; i < len + 15; i++){
-    uint64 tmp = 0;
-    if(i < len)
-      tmp = packCh(rec_seq[i], false);
-    pack = (pack << 4) | tmp;
-    if(i >= 15) out[i - 15] = pack;
+  for(int i = 0; i < len / 4 * 4; i+=4){
+    uint64 tmp0 = (1 << ((rec_seq[i + 0] >> 1) & 7)) & 15;
+    uint64 tmp1 = (1 << ((rec_seq[i + 1] >> 1) & 7)) & 15;
+    uint64 tmp2 = (1 << ((rec_seq[i + 2] >> 1) & 7)) & 15;
+    uint64 tmp3 = (1 << ((rec_seq[i + 3] >> 1) & 7)) & 15;
+
+    pack = (pack << 4) | tmp0;
+    out[i + 0] = pack;
+    pack = (pack << 4) | tmp1;
+    out[i + 1] = pack;
+    pack = (pack << 4) | tmp2;
+    out[i + 2] = pack;
+    pack = (pack << 4) | tmp3;
+    out[i + 3] = pack;
   }
-  return out;
+
+  for(int i = len / 4 * 4; i < len; i++){
+    uint64 tmp = (1 << ((rec_seq[i] >> 1) & 7)) & 15;
+    pack = (pack << 4) | tmp;
+    out[i] = pack;
+  }
+  
+  for(int i = len; i < len + 15; i++)
+  {
+    pack = (pack << 4);
+    out[i] = pack;
+  }
+  return out + 15;
 }
 
 
