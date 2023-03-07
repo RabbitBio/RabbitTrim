@@ -15,10 +15,10 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   // Trim Stats for each thread
   std::vector<rabbit::log::TrimStat> statsArr(consumer_num);
 
-  // PairingValidator
-  rabbit::PairingValidator* pairingValidator;
-  if(rp.validatePairing)
-    pairingValidator = new rabbit::PairingValidator(logger);
+  // // PairingValidator
+  // rabbit::PairingValidator* pairingValidator;
+  // if(rp.validatePairing)
+  //   pairingValidator = new rabbit::PairingValidator(logger);
 
   // trimmers
   TrimmerFactory *trimmerFactory = new TrimmerFactory(logger);

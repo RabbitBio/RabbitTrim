@@ -3,9 +3,9 @@
 using namespace rabbit::trim;
 
 int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &logger) {
-  int consumer_num = rp.threads - 3;
-  rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(256,MEM_PER_CHUNK);
-  rabbit::trim::FastqDataPairChunkQueue queue1(256,1);
+  int consumer_num = rp.threads;
+  rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(128, MEM_PER_CHUNK);
+  rabbit::trim::FastqDataPairChunkQueue queue1(128,1);
   rabbit::trim::PEWriterDataQueue queue2(256,consumer_num);
   rabbit::trim::TrimLogDataQueue queue3(256,consumer_num);
 
@@ -33,14 +33,16 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   std::thread **consumer_threads = new std::thread* [consumer_num]; 
   if(rp.seqA.size()) 
   {
+    // Ktrim
     for(int tn = 0; tn < consumer_num; tn++){
       consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task2, std::ref(rp), fastqPool, std::ref(queue1), std::ref(queue2), std::ref(statsArr[tn]), std::ref(trimmers)));
     }
   }
   else
   {
+    // Trimmomatic
     for(int tn = 0; tn < consumer_num; tn++){
-      consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task, std::ref(rp), fastqPool, std::ref(queue1), std::ref(queue2), std::ref(queue3), std::ref(statsArr[tn]), std::ref(trimmers)));
+      consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task, std::ref(rp), fastqPool, std::ref(queue1), std::ref(queue2), std::ref(queue3), std::ref(statsArr[tn]), std::ref(trimmers), tn));
     }
   }
 
@@ -119,8 +121,7 @@ int rabbit::trim::producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
 
 
 // comusmer task
-void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, PEWriterDataQueue& dq2, TrimLogDataQueue& dq3, rabbit::log::TrimStat& rstats,
-    std::vector<rabbit::trim::Trimmer*>& trimmers)
+void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, PEWriterDataQueue& dq2, TrimLogDataQueue& dq3, rabbit::log::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers, int threadId)
 {
   rabbit::int64 chunk_id;
   rabbit::fq::FastqPairChunk* fqPairChunk = new rabbit::fq::FastqPairChunk;
@@ -133,7 +134,7 @@ void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
     ASSERT(loaded == loaded2);
     rstats.readsInput += loaded;
     for(auto trimmer : trimmers){
-      trimmer -> processRecords(data, true, false);
+      trimmer -> processRecords(data, threadId, true, false);
     }
     // prepare trim log data
     bool isLog = (bool)rp.trimLog.size();

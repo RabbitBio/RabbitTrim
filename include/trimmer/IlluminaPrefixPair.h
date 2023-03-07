@@ -5,6 +5,8 @@
 #include "Logger.h"
 #include "Reference.h"
 #include <assert.h>
+#include "param.h"
+#include <algorithm>
 namespace rabbit
 {
     namespace trim
@@ -15,12 +17,19 @@ namespace rabbit
                     std::string prefix1;
                     std::string prefix2;
                     
-                    IlluminaPrefixPair(std::string prefix1_, std::string prefix2_, rabbit::Logger& logger, int phred_, int minPrefix_, int seedMaxMiss_, int minPalindromeLikelihood_, bool palindromeKeepBoth_);
-                    ~IlluminaPrefixPair() = default;
+                    IlluminaPrefixPair(std::string prefix1_, std::string prefix2_, rabbit::Logger& logger, int phred_, int minPrefix_, int seedMaxMiss_, int minPalindromeLikelihood_, bool palindromeKeepBoth_, int consumerNum_ = 1);
+                    ~IlluminaPrefixPair();
                     
                     
                     uint64 packCh(char ch, bool reverse);
                     uint64* packSeqInternal(std::string seq, bool reverse);
+
+                    
+                    uint64* packSeqInternalForward(neoReference& rec, int threadId);
+                    uint64* packSeqInternalReverse(neoReference& rec, int threadId);
+                    int palindromeReadsCompare(neoReference& rec1, neoReference& rec2, int threadId);
+                    float calculatePalindromeDifferenceQuality(neoReference& rec1, neoReference& rec2, int overlap, int skip1, int skip2, int threadId);
+
 
                     uint64* packSeqInternal(neoReference& rec, bool reverse);
                     float calculatePalindromeDifferenceQuality(neoReference& rec1, neoReference& rec2, int overlap, int skip1, int skip2);
@@ -44,6 +53,10 @@ namespace rabbit
                     int minPalindromeLikelihood;
                     int minPrefix;
                     bool palindromeKeepBoth;
+                    int consumerNum;
+                    uint64* forwardPacks;
+                    uint64* reversePacks;
+                    float* likelihoodArr;
                     
         };
     } // namespace trim

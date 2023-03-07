@@ -91,7 +91,7 @@ std::vector<std::string> tokens = rabbit::trim::util::split(fullName, "[\\| ]");
         // delete same elements in forwardSeqMap and reverseSeqMap
         forwardSeqMap.erase(forwardName);
         reverseSeqMap.erase(reverseName);
-        IlluminaPrefixPair* onePrefixPair = new IlluminaPrefixPair(forwardRec, reverseRec, logger_, phred, minPrefix, seedMaxMiss,  minPalindromeLikelihood,  palindromeKeepBoth);
+        IlluminaPrefixPair* onePrefixPair = new IlluminaPrefixPair(forwardRec, reverseRec, logger_, phred, minPrefix, seedMaxMiss,  minPalindromeLikelihood,  palindromeKeepBoth, consumerNum_);
         prefixPairs.emplace_back(onePrefixPair);
    }
    
@@ -379,7 +379,7 @@ void IlluminaClippingTrimmer::processPairRecord(neoReference& rec1, neoReference
     int toKeepReverse = rec2.lseq;
     int toKeep;
     for(auto& iter : prefixPairs){
-        toKeep = iter -> palindromeReadsCompare(rec1, rec2);
+        toKeep = iter -> palindromeReadsCompare(rec1, rec2, threadId);
         if(toKeep != (1 << 30)){
           toKeepForward = (toKeep < toKeepForward) ? toKeep : toKeepForward;
           if(palindromeKeepBoth){
