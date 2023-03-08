@@ -54,6 +54,8 @@ namespace rabbit
             int minLen;
             int minQual;
             int window;
+            double mismatch;
+            bool use_default_mismatch;
         };
 
     } // namespace trim

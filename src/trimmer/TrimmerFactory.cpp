@@ -132,7 +132,7 @@ Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, rabbit::trim::RabbitTr
                 exit(1);
             }
         }
-        return new SeedClippingTrimmer(mismatch, rp.seqA, rp.seqB, rp.minLen, rp.minQual, rp.window, phred);
+        return new SeedClippingTrimmer(rp.mismatch, rp.use_default_mismatch, rp.seqA, rp.seqB, rp.minLen, rp.minQual, rp.window, phred);
     }
     
     logger.errorln("Unknown trimmer: " + trimmerName);

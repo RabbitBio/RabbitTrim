@@ -63,6 +63,7 @@ int main( int argc, char **argv) {
     int minLen = 36;
     int minQual = 20;
     int window = 5;
+    double mismatch = 0.125;
     
     auto kt_flag_pe  = ktrim->add_flag("-P,--PE,!--no-PE", isPE, "specify whether to be pair end data ");
     auto kt_flag_se  = ktrim->add_flag("-S,--SE,!--no-SE", isSE, "specify whether to be single end data");
@@ -71,6 +72,7 @@ int main( int argc, char **argv) {
     auto kt_option_o = ktrim->add_option("-o,--output", output, "specify the path to the output file"); 
     auto kt_option_t = ktrim->add_option("-t,--threads", threads, "specify the number of threads");
     auto kt_option_p = ktrim->add_option("-p,--phred", phred, "specify the baseline of the phred score");
+    auto kt_option_m = ktrim->add_option("-m,--mismatch", mismatch, "Set the proportion of mismatches allowed during index and sequence comparison, Default: 0.125");
     auto kt_option_l = ktrim->add_option("-l,--minlen", minLen, "specify the minimum read size to be kept");
     auto kt_option_q = ktrim->add_option("-q,--quality", minQual, "specify the minimum quality score");
     auto kt_option_w = ktrim->add_option("-w,--window", window, "specify the window size for quality check");
@@ -87,6 +89,7 @@ int main( int argc, char **argv) {
     kt_option_o->required();
     kt_option_t->check(CLI::PositiveNumber);
     kt_option_p->required();
+    kt_option_m->check(CLI::Range(0.0, 1.0));
     kt_option_l->check(CLI::PositiveNumber);
     kt_option_q->check(CLI::PositiveNumber);
     kt_option_w->check(CLI::PositiveNumber);
@@ -113,6 +116,8 @@ int main( int argc, char **argv) {
     rp.minLen = minLen;
     rp.minQual = minQual;
     rp.window = window;
+    rp.mismatch = mismatch;
+    rp.use_default_mismatch = (*kt_option_m) ? false : true;
 
 	double start,finish;
 	rabbit::Logger logger(true, true, quiet);

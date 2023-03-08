@@ -2,7 +2,7 @@
 #include <iostream>
 using namespace rabbit::trim;
 
-SeedClippingTrimmer::SeedClippingTrimmer(double mismatch_, std::string seqA_, std::string seqB_, int minLen_, int minQual_, int window_, int phred_)
+SeedClippingTrimmer::SeedClippingTrimmer(double mismatch_, bool use_default_mismatch_, std::string seqA_, std::string seqB_, int minLen_, int minQual_, int window_, int phred_)
 {
   mismatch = mismatch_;
   seqA = seqA_;
@@ -11,6 +11,7 @@ SeedClippingTrimmer::SeedClippingTrimmer(double mismatch_, std::string seqA_, st
   minQual = minQual_;
   window = window_;
   phred = phred_;
+  use_default_mismatch = use_default_mismatch_;
 }
 
 SeedClippingTrimmer::~SeedClippingTrimmer()
@@ -19,14 +20,7 @@ SeedClippingTrimmer::~SeedClippingTrimmer()
 }
 
 void SeedClippingTrimmer::processOneRecord(Reference& rec){}
-void SeedClippingTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse)
-{
-  for(auto& rec : recs){
-    processOneRecord(rec);
-  }
-}
-
-
+void SeedClippingTrimmer::processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse) {}
 
 void SeedClippingTrimmer::processSingleRecord(neoReference& rec)
 {
@@ -62,8 +56,10 @@ void SeedClippingTrimmer::processSingleRecord(neoReference& rec)
 
   // find seed
   std::set<int> seed;
-  const char* adapter_index_1 = seqA.substr(0, 3).c_str();
-  const char* adapter_index_2 = seqA.substr(3, 3).c_str();
+  std::string tmp_index1 = seqA.substr(0, 3);
+  std::string tmp_index2 = seqA.substr(3, 3);
+  const char* adapter_index_1 = tmp_index1.c_str();
+  const char* adapter_index_2 = tmp_index2.c_str();
   rec_seq[rec.lseq] = '\0';
   char* indexloc = rec_seq;
   while (true)
@@ -102,7 +98,9 @@ void SeedClippingTrimmer::processSingleRecord(neoReference& rec)
     int pos = *iter;
     int compLen = rec.lseq - pos; 
     compLen = compLen > seqA.size() ? seqA.size() : compLen;
-    int maxMiss = std::ceil(compLen * mismatch);
+    int maxMiss;
+    if(use_default_mismatch) maxMiss = (compLen + 7) >> 3;
+    else maxMiss = std::ceil(compLen * mismatch);
     char* start = rec_seq + pos;
     int tmpMiss = 0;
     isFound = true;
@@ -187,8 +185,10 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
   // find seed
   std::set<int> seed;
   char* indexloc = rec1_seq;
-  const char* adapter_index_1 = seqA.substr(0, 3).c_str();
-  const char* adapter_index_2 = seqB.substr(0, 3).c_str();
+  std::string tmp_index1 = seqA.substr(0, 3);
+  std::string tmp_index2 = seqB.substr(0, 3);
+  const char* adapter_index_1 = tmp_index1.c_str();
+  const char* adapter_index_2 = tmp_index2.c_str();
   while(true)
   {
     indexloc = std::strstr(indexloc, adapter_index_1);
@@ -219,7 +219,9 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
     int pos = *iter;
     int compLen = rec_len - pos;
     compLen = compLen > seqA.size() ? seqA.size() : compLen;
-    int maxMiss = std::ceil(mismatch * compLen);
+    int maxMiss;
+    if(use_default_mismatch) maxMiss = (compLen + 7) >> 3;
+    else maxMiss = std::ceil(mismatch * compLen);
     char* rec1_start = rec1_seq + pos;
     char* rec2_start = rec2_seq + pos;
     int tmpMiss = 0;

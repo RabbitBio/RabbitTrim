@@ -19,6 +19,7 @@ namespace rabbit
             const int DIMER_INSERT = 1;
             int phred;
             double mismatch;
+            bool use_default_mismatch;
             int minQual;
             int window;
             int minLen;
@@ -26,7 +27,7 @@ namespace rabbit
             std::string seqB;
 
         public:
-            SeedClippingTrimmer(double mismatch_, std::string seqA_, std::string seqB_, int minLen_, int minQual_, int window_, int phred_);
+            SeedClippingTrimmer(double mismatch_, bool use_default_mismatch_, std::string seqA_, std::string seqB_, int minLen_, int minQual_, int window_, int phred_);
             ~SeedClippingTrimmer();
             void processOneRecord(Reference& rec);
             void processRecords(std::vector<Reference>& recs, bool isPair, bool isReverse);
