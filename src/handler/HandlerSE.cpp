@@ -9,8 +9,10 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
 
   rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(256,MEM_PER_CHUNK);
   rabbit::trim::FastqDataChunkQueue queue1(256,1);
-  rabbit::trim::WriterDataQueue queue2(256, consumer_num);
+  rabbit::trim::WriterDataQueue queue2(512, consumer_num);
   TrimLogDataQueue queue3(256, consumer_num);
+  // output DataPool
+  WriterBufferDataPool* wbDataPool = new WriterBufferDataPool(512, MEM_PER_CHUNK);
 
   // Trim Stats for each thread
   std::vector<rabbit::log::TrimStat> statsArr(consumer_num);
@@ -39,11 +41,11 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   std::thread **consumer_threads = new std::thread* [consumer_num]; 
   for(int tn = 0; tn < consumer_num; tn++){
     // asm ("":::"memory");
-    consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_se_task, std::ref(rp), fastqPool, std::ref(queue1), std::ref(queue2), std::ref(queue3), std::ref(statsArr[tn]), std::ref(trimmers), tn));
+    consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_se_task, std::ref(rp), fastqPool, std::ref(queue1), wbDataPool, std::ref(queue2), std::ref(queue3), std::ref(statsArr[tn]), std::ref(trimmers), tn));
   }
 
   // writer 
-  std::thread writer(rabbit::trim::writer_se_task, std::ref(rp), std::ref(queue2), std::ref(logger));
+  std::thread writer(rabbit::trim::writer_se_task, std::ref(rp), wbDataPool, std::ref(queue2), std::ref(logger));
 
   producer.join();
   for(int tn = 0; tn < consumer_num; tn++){
@@ -98,7 +100,7 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
 
 
 // comusmer task
-void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterDataQueue& dq2, TrimLogDataQueue& dq3, rabbit::log::TrimStat& rstats, const std::vector<rabbit::trim::Trimmer*>& trimmers, int threadId)
+void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterDataQueue& dq2, TrimLogDataQueue& dq3, rabbit::log::TrimStat& rstats, const std::vector<rabbit::trim::Trimmer*>& trimmers, int threadId)
 {
   bool isReverse = rp.reverseFiles.size();
   bool isLog = rp.trimLog.size();
@@ -118,7 +120,9 @@ void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
     }
 
     // copy data to WriterBuffer 
-    WriterBuffer* wb = new WriterBuffer((unsigned int)MEM_PER_CHUNK);
+    // WriterBuffer* wb = new WriterBuffer((unsigned int)MEM_PER_CHUNK);
+    WriterBuffer* wb = NULL;
+    wbDataPool -> Acquire(wb);
     rabbit::log::TrimLogBuffer* tb;
     if(isLog) tb = new rabbit::log::TrimLogBuffer(MEM_PER_TRIMLOG_BUFFER);
     uint64_t pos = 0;
@@ -182,8 +186,8 @@ void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
   dq3.SetCompleted();
 }
 
-void rabbit::trim::writer_se_task(rabbit::trim::RabbitTrimParam& rp,  WriterDataQueue& dq2, rabbit::Logger& logger){
-  std::ofstream fout((rp.output + ".fq").c_str());
+void rabbit::trim::writer_se_task(rabbit::trim::RabbitTrimParam& rp, WriterBufferDataPool* wbDataPool, WriterDataQueue& dq2, rabbit::Logger& logger){
+  std::ofstream fout(rp.output.c_str());
   if(fout.fail()){
     logger.errorln("Can not open file " + rp.output);
     exit(1);
@@ -193,12 +197,13 @@ void rabbit::trim::writer_se_task(rabbit::trim::RabbitTrimParam& rp,  WriterData
   while(dq2.Pop(chunk_id, wb)){
     // write to file
     fout << wb->data;
+    wbDataPool -> Release(wb);
   }
   fout.close();
 } 
 
 void rabbit::trim::trimlog_se_task(rabbit::trim::RabbitTrimParam& rp, TrimLogDataQueue& dq, rabbit::Logger& logger){
-  std::ofstream fout((rp.trimLog).c_str());
+  std::ofstream fout(rp.trimLog.c_str());
   if(fout.fail()){
     logger.errorln("Can not open file " + rp.trimLog);
     exit(1);
@@ -208,6 +213,7 @@ void rabbit::trim::trimlog_se_task(rabbit::trim::RabbitTrimParam& rp, TrimLogDat
   while(dq.Pop(chunk_id, tb)){
     // write to file
     fout << tb->data;
+    // delelte ?
   }
   fout.close();
   
