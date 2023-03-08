@@ -17,6 +17,10 @@ namespace rabbit
         struct RabbitTrimParam{
             RabbitTrimParam() = default;
             void prepare(){
+                // set steps && stats
+                steps.push_back("SEED");
+                stats = output + ".trim.log";
+              
                 // set seqKit of Ktrim
                 if(seqKit.size() || (seqA.size() == 0 && seqB.size() == 0)){
                     // use built-in adapter
@@ -35,6 +39,7 @@ namespace rabbit
 
                 std::cout << "Using seqA: " << seqA << '\n'
                           << "      seqB: " << seqB << '\n';
+                
                 
             }
             std::vector<std::string> forwardFiles;

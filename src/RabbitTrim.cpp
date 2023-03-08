@@ -79,8 +79,8 @@ int main( int argc, char **argv) {
     auto kt_option_a = ktrim->add_option("-a,--seqA", seqA, "specify the adapter sequence of read1");
     auto kt_option_b = ktrim->add_option("-b,--seqB", seqB, "specify the adapter sequence of read2");
     auto kt_option_k = ktrim->add_option("-k,--seqKit", seqKit, "specify the sequencing kit to use built-in adapters");
-    auto kt_option_s = ktrim->add_option("-s,--steps", steps, "specify the steps to be performed");
-    auto kt_option_stat = ktrim->add_option("--stats", stats, "specify the path to the trim statistical data file"); 
+    // auto kt_option_s = ktrim->add_option("-s,--steps", steps, "specify the steps to be performed");
+    // auto kt_option_stat = ktrim->add_option("--stats", stats, "specify the path to the trim statistical data file"); 
 
     kt_flag_pe->excludes(kt_flag_se)->needs(kt_option_f)->needs(kt_option_r);
     kt_flag_se->excludes(kt_flag_pe);
@@ -94,8 +94,8 @@ int main( int argc, char **argv) {
     kt_option_q->check(CLI::PositiveNumber);
     kt_option_w->check(CLI::PositiveNumber);
     kt_option_k->check(CLI::IsMember(std::set<std::string>{"Illumina", "Nextera", "BGI", "Transposase"}));
-    kt_option_s->required();
-    kt_option_stat->required();
+    // kt_option_s->required();
+    // kt_option_stat->required();
 
     // ktrim params
     CLI11_PARSE(app, argc, argv);
