@@ -20,6 +20,7 @@ namespace rabbit
         if(data != nullptr){
           delete[] data;
         }
+        data = nullptr;
       }
       void Reset(){
         size = 0;

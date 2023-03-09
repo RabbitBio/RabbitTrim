@@ -85,7 +85,7 @@ class TDataPool {
 
     ASSERT(availablePartsPool.size() > 0);
 
-    DataType *&pp = availablePartsPool.back();
+    DataType *pp = availablePartsPool.back();
     availablePartsPool.pop_back();
     if (pp == NULL) {
       pp = new DataType(bufferPartSize);

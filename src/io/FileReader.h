@@ -5,6 +5,7 @@
 #include <string>
 #include <cstring>
 #include "Reference.h"
+#include <assert.h>
 
 #if defined(USE_IGZIP)
 #include "igzip_lib.h"

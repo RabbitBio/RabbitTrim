@@ -30,6 +30,14 @@ if(USE_OMP)
   set(COMMON_FLAGS "${COMMON_FLAGS} -fopenmp")
 endif()
 
+if(DEFINED IGZIP_PATH)
+  message(STATUS "Using igzip : ${IGZIP_PATH}")
+  include_directories(${IGZIP_PATH}/include/isa-l/)
+  link_directories(${IGZIP_PATH}/lib64)
+  link_directories(${IGZIP_PATH}/lib)
+  set(COMMON_FLAGS "${COMMON_FLAGS} -DUSE_IGZIP")
+endif()
+
 # compile flags
 set(CMAKE_C_FLAGS "${COMMON_FLAGS}")
 set(CMAKE_CXX_FLAGS "${COMMON_FLAGS}")
@@ -39,23 +47,32 @@ message(STATUS "CMAKE_CXX_FLAGS : ${CMAKE_CXX_FLAGS}")
 # include files
 set(INCLUlDE_PATH ${CMAKE_SOURCE_DIR}/include)
 set(IO_INCLUlDE_PATH ${CMAKE_SOURCE_DIR}/src/io)
-include_directories(${INCLUlDE_PATH} ${IO_INCLUlDE_PATH}) 
+set(PIGZ_INCLUlDE_PATH ${CMAKE_SOURCE_DIR}/src/pigz)
+include_directories(${INCLUlDE_PATH} ${IO_INCLUlDE_PATH} ${PIGZ_INCLUlDE_PATH}) 
 
 # source files
 set(SOURCE_PATH ${CMAKE_SOURCE_DIR}/src)
 set(IO_SOURCE_PATH ${CMAKE_SOURCE_DIR}/src/io)
+set(PIGZ_SOURCE_PATH ${CMAKE_SOURCE_DIR}/src/pigz)
 aux_source_directory(${SOURCE_PATH}/handler DIR_SRC_HANDLER)
 aux_source_directory(${SOURCE_PATH}/trimmer DIR_SRC_TRIM)
 aux_source_directory(${SOURCE_PATH}/trimlog DIR_SRC_LOG)
 aux_source_directory(${SOURCE_PATH}/utils DIR_SRC_UTIL)
-add_library(rtrim STATIC ${DIR_SRC_HANDLER} ${DIR_SRC_TRIM} ${DIR_SRC_LOG}
-  ${DIR_SRC_UTIL})
+add_library(rtrim STATIC ${DIR_SRC_HANDLER} ${DIR_SRC_TRIM} ${DIR_SRC_LOG} ${DIR_SRC_UTIL})
 aux_source_directory(${IO_SOURCE_PATH} DIR_SRC_IO)
 add_library(io STATIC ${DIR_SRC_IO})
+aux_source_directory(${PIGZ_SOURCE_PATH} DIR_SRC_PIGZ)
+add_library(pigz STATIC ${DIR_SRC_PIGZ})
 
 # executable
 aux_source_directory(${SOURCE_PATH} DIR_SRC)
 add_executable(${PROJECT_NAME} ${DIR_SRC})
 
 # libraries
-target_link_libraries(${PROJECT_NAME} PUBLIC rtrim io z pthread)
+if(DEFINED IGZIP_PATH) 
+  target_link_libraries(${PROJECT_NAME} PUBLIC rtrim io isal pigz z pthread)
+else()
+  target_link_libraries(${PROJECT_NAME} PUBLIC rtrim io pigz z pthread)
+endif()
+  
+

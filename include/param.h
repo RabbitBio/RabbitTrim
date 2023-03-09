@@ -52,6 +52,10 @@ namespace rabbit
             int threads;
             int phred;
             bool validatePairing;
+            bool useIgzip;
+            bool usePigz;
+            int pigzThreadsNum;
+            int compressLevel;
             
             std::string seqA;
             std::string seqB;

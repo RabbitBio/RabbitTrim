@@ -9,6 +9,7 @@
 #include <thread>
 #include <ctime>
 #include <stdlib.h>
+#include <string.h>
 #include "util.h"
 #include "PairingValidator.h"
 #include "Logger.h"
@@ -35,8 +36,11 @@ namespace rabbit
         void consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterDataQueue& dq2, TrimLogDataQueue& dq3, rabbit::log::TrimStat& rstats, const std::vector<rabbit::trim::Trimmer*>& trimmers, int threadId);
         void writer_se_task(rabbit::trim::RabbitTrimParam& rp, WriterBufferDataPool* wbDataPool, WriterDataQueue& dq2, rabbit::Logger& logger); 
         void trimlog_se_task(rabbit::trim::RabbitTrimParam& rp, TrimLogDataQueue& dq, rabbit::Logger& logger);
+
+        // pigz
+        void pigzer_se_task(rabbit::trim::RabbitTrimParam& rp, WriterBufferDataPool* wbDataPool, WriterDataQueue& dq2, std::pair<char*, int>& pigzLast);
     } // namespace trim
-    
+
 } // namespace rabbit
 
 #endif
