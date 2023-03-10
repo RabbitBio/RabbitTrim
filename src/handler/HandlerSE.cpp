@@ -1,4 +1,6 @@
 #include "handler/HandlerSE.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include "pigz.h"
 
 using namespace rabbit::trim;
@@ -214,19 +216,169 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
   }
 
   void rabbit::trim::writer_se_task(rabbit::trim::RabbitTrimParam& rp, WriterBufferDataPool* wbDataPool, WriterDataQueue& dq2, rabbit::Logger& logger){
-    std::ofstream fout(rp.output.c_str());
-    if(fout.fail()){
-      logger.errorln("Can not open file " + rp.output);
-      exit(1);
+    if(rabbit::trim::util::endsWith(rp.output, ".gz")){
+#ifdef USE_IGZIP
+      // use igzip to compress
+#include "igzip_lib.h"
+      int level_size_[10] = {
+#ifdef ISAL_DEF_LVL0_DEFAULT
+        ISAL_DEF_LVL0_DEFAULT,
+#else
+        0,
+#endif
+#ifdef ISAL_DEF_LVL1_DEFAULT
+        ISAL_DEF_LVL1_DEFAULT,
+#else
+        0,
+#endif
+#ifdef ISAL_DEF_LVL2_DEFAULT
+        ISAL_DEF_LVL2_DEFAULT,
+#else
+        0,
+#endif
+#ifdef ISAL_DEF_LVL3_DEFAULT
+        ISAL_DEF_LVL3_DEFAULT,
+#else
+        0,
+#endif
+#ifdef ISAL_DEF_LVL4_DEFAULT
+        ISAL_DEF_LVL4_DEFAULT,
+#else
+        0,
+#endif
+#ifdef ISAL_DEF_LVL5_DEFAULT
+        ISAL_DEF_LVL5_DEFAULT,
+#else
+        0,
+#endif
+#ifdef ISAL_DEF_LVL6_DEFAULT
+        ISAL_DEF_LVL6_DEFAULT,
+#else
+        0,
+#endif
+#ifdef ISAL_DEF_LVL7_DEFAULT
+        ISAL_DEF_LVL7_DEFAULT,
+#else
+        0,
+#endif
+#ifdef ISAL_DEF_LVL8_DEFAULT
+        ISAL_DEF_LVL8_DEFAULT,
+#else
+        0,
+#endif
+#ifdef ISAL_DEF_LVL9_DEFAULT
+        ISAL_DEF_LVL9_DEFAULT,
+#else
+        0
+#endif
+      };
+        FILE* out = fopen(rp.output.c_str(), "wb");
+        if(!out)
+        {
+          logger.errorln("Failed to open file ' " + rp.output + " '");
+          exit(1);
+        }
+        fflush(0);
+        struct isal_zstream stream;
+        struct isal_gzip_header gz_hdr;
+        isal_gzip_header_init(&gz_hdr);
+        isal_deflate_init(&stream);
+        stream.flush = NO_FLUSH;
+        const int LEVEL = rp.compressLevel > 3 ? 0 : rp.compressLevel;
+        
+        stream.level = LEVEL;
+        stream.level_buf_size = level_size_[LEVEL];
+        stream.level_buf = (uint8_t*)malloc(level_size_[LEVEL]);
+        stream.gzip_flag = IGZIP_GZIP;
+        // isal_write_gzip_header(&stream, &gz_hdr);
+        stream.end_of_stream = 0;
+
+        rabbit::int64 chunk_id;
+        WriterBuffer* wb;
+        WriterBuffer* wb2;
+        uint8_t* igzp_output_buf = new uint8_t[MEM_PER_CHUNK];
+
+        dq2.Pop(chunk_id, wb);
+        while(true)
+        {
+          if(dq2.Pop(chunk_id, wb2))
+          {
+            stream.end_of_stream = 0;
+
+            stream.avail_in = wb -> size;
+            stream.next_in = (uint8_t*)(wb->data);
+            stream.avail_out = MEM_PER_CHUNK;
+            stream.next_out = igzp_output_buf;
+            isal_deflate(&stream);
+            fwrite(igzp_output_buf, 1, MEM_PER_CHUNK - stream.avail_out, out);
+            wbDataPool -> Release(wb);
+            wb = wb2;
+          }
+          else{
+            stream.end_of_stream = 1;
+            stream.flush = FULL_FLUSH;
+            stream.avail_in = wb -> size;
+            stream.next_in = (uint8_t*)(wb->data);
+            stream.avail_out = MEM_PER_CHUNK;
+            stream.next_out = igzp_output_buf;
+            isal_deflate(&stream);
+            // isal_deflate_end(&stream);
+            fwrite(igzp_output_buf, 1, MEM_PER_CHUNK - stream.avail_out, out);
+            wbDataPool -> Release(wb);
+            break;
+
+          }
+        }
+        fclose(out);
+        delete [] igzp_output_buf;
+
+
+#else
+#include "zlib.h"
+        // use zlib
+        gzFile gz_out_stream = gzopen(rp.output.c_str(), "w");
+        if(gz_out_stream == NULL)
+        {
+          logger.errorln("Failed to open file ' " + rp.output + " ' by using gzip");
+          exit(1);
+      }
+      int ret = gzsetparams(gz_out_stream, rp.compressLevel, Z_DEFAULT_STRATEGY);
+      
+      if (ret != Z_OK) {
+        logger.errorln("Failed to set gzip parameters");
+        gzclose(gz_out_stream);
+        exit(1);
+      }
+      rabbit::int64 chunk_id;
+      WriterBuffer* wb;
+      while(dq2.Pop(chunk_id, wb)){
+				ret = gzwrite(gz_out_stream, wb->data, wb->size);
+        if (ret <= 0) {
+        	logger.errorln("Failed to write data");
+          gzclose(gz_out_stream);
+          exit(1);
+        }
+        wbDataPool -> Release(wb);
+      }
+      gzclose(gz_out_stream);
+      
+#endif
     }
-    rabbit::int64 chunk_id;
-    WriterBuffer* wb;
-    while(dq2.Pop(chunk_id, wb)){
-      // write to file
-      fout << wb->data;
-      wbDataPool -> Release(wb);
+    else{
+      std::ofstream fout(rp.output.c_str());
+      if(fout.fail()){
+        logger.errorln("Failed to open file ' " + rp.output + " '");
+        exit(1);
+      }
+      rabbit::int64 chunk_id;
+      WriterBuffer* wb;
+      while(dq2.Pop(chunk_id, wb)){
+        // write to file
+        fout << wb->data;
+        wbDataPool -> Release(wb);
+      }
+      fout.close();
     }
-    fout.close();
   } 
 
   void rabbit::trim::trimlog_se_task(rabbit::trim::RabbitTrimParam& rp, TrimLogDataQueue& dq, rabbit::Logger& logger){
@@ -240,7 +392,6 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
     while(dq.Pop(chunk_id, tb)){
       // write to file
       fout << tb->data;
-      // delelte ?
     }
     fout.close();
 
