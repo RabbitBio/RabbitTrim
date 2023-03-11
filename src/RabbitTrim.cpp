@@ -62,7 +62,7 @@ int main( int argc, char **argv) {
     // trimm_option_l->required();
     trimm_option_stat->required();
     trimm_option_s->required();
-    trimm_option_c->check(CLI::Range(1, 9).description("compression level is limited to be between 1 and 9"));
+    trimm_option_c->check(CLI::Range(0, 9).description("compression level is limited to be between 0 and 9"));
     trimm_option_pigz_th->needs(trimm_flag_pigz) -> check(CLI::PositiveNumber) -> check(CLI::Bound(2, 64));
 
     
@@ -107,7 +107,7 @@ int main( int argc, char **argv) {
     kt_option_q->check(CLI::PositiveNumber);
     kt_option_w->check(CLI::PositiveNumber);
     kt_option_k->check(CLI::IsMember(std::set<std::string>{"Illumina", "Nextera", "BGI", "Transposase"}));
-    kt_option_c->check(CLI::Range(1, 9).description("compression level is limited to be between 1 and 9"));
+    kt_option_c->check(CLI::Range(0, 9).description("compression level is limited to be between 0 and 9"));
     // kt_option_s->required();
     // kt_option_stat->required();
     kt_option_pigz_th -> needs(kt_flag_pigz) -> check(CLI::PositiveNumber) -> check(CLI::Bound(2, 64));

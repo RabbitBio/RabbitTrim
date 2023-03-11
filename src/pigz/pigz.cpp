@@ -1066,8 +1066,6 @@ local size_t readFromQueue(rabbit::trim::WriterBufferDataPool* wbDataPool, rabbi
   rabbit::trim::WriterBuffer* wb;
   // = new rabbit::trim::WriterBuffer;
   while (len > 0 && dq2.Pop(chunk_id, wb)) {
-    //cout<<"wDone "<<*wDone<<endl;
-
     int getSize = wb -> size;
     char *getPos = wb -> data;
     //        printf("getSize is %d, len is %zu, tag is %d\n", getSize, len, tag);
@@ -1089,8 +1087,7 @@ local size_t readFromQueue(rabbit::trim::WriterBufferDataPool* wbDataPool, rabbi
       printf("ret < 0\n");
       //throw (errno, "read error on %s (%s)", g.inf, strerror(errno));
     }
-    if (ret == 0)
-      break;
+    // if (ret == 0) break;
 
     buf += ret;
     len -= (size_t) ret;

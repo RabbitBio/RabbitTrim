@@ -353,7 +353,7 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
       WriterBuffer* wb;
       while(dq2.Pop(chunk_id, wb)){
 				ret = gzwrite(gz_out_stream, wb->data, wb->size);
-        if (ret <= 0) {
+        if (wb -> size && ret <= 0) {
         	logger.errorln("Failed to write data");
           gzclose(gz_out_stream);
           exit(1);
