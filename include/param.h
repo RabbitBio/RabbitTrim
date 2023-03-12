@@ -19,7 +19,7 @@ namespace rabbit
             void prepare(){
                 // set steps && stats
                 steps.push_back("SEED");
-                stats = output + ".trim.log";
+                stats = output.substr(0, output.find(".gz")) + ".trim.log";
               
                 // set seqKit of Ktrim
                 if(seqKit.size() || (seqA.size() == 0 && seqB.size() == 0)){

@@ -262,7 +262,7 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
   int offset1 = skip1;
   int offset2 = skip2 + overlap - 1;
   int minCmpLen, maxCmpLen;
-  // if(prefixLen - skip1 < skip2 + overlap - prefixLen){
+  // if(prefixLen - skip1 < skip2 + overlap - prefixLen){ //  must go here
     minCmpLen = std::max(prefixLen - skip1, 0);
     maxCmpLen = std::min(skip2 + overlap - prefixLen, overlap);
   // }
@@ -287,7 +287,7 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
   }
   
   if(prefixLen - skip1 == minCmpLen)
-  {
+  { // must go here
     for(int i = 0; i < maxCmpLen - minCmpLen; i++)
     {
       char ch1 = rec1_seq[offset1 - prefixLen];

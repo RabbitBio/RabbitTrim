@@ -62,12 +62,12 @@ void TrimStat::merge(std::vector<TrimStat>& trimStatArr){
 }
 
 void TrimStat::printSE(std::string filename){
-    const char* path = filename.c_str();
+    std::string out_file = filename.substr(0, filename.find(".gz"));
     uint64 dropped = readsInput - readsSurvivingForward;
     double survivingPercent = (100.0 * readsSurvivingForward) / readsInput;
     double droppedPercent = (100.0 * dropped) / readsInput;
     
-    std::ofstream fout(path);
+    std::ofstream fout(out_file.c_str());
     if(fout.fail()) { 
           logger.errorln("\033[1;34mError: cannot open file " + filename +"!\033[0m\n");
           return;
@@ -84,14 +84,14 @@ void TrimStat::printSE(std::string filename){
 }
 
 void TrimStat::printPE(std::string filename){
-    const char* path = filename.c_str();
+    std::string out_file = filename.substr(0, filename.find(".gz"));
     uint64 dropped = readsInput - readsSurvivingBoth - readsSurvivingForward - readsSurvivingReverse;
     double survivingBothPercent  = (100.0 * readsSurvivingBoth) / readsInput;
     double survivingForwardPercent = (100.0 * readsSurvivingForward) / readsInput;
     double survivingReversePercent = (100.0 * readsSurvivingReverse) / readsInput;
     double droppedPercent = (100.0 * dropped) / readsInput;
     
-    std::ofstream fout(path);
+    std::ofstream fout(out_file.c_str());
     if(fout.fail()) { 
           logger.errorln("\033[1;34mError: cannot open file " + filename +"!\033[0m\n");
           return;
@@ -113,8 +113,8 @@ void TrimStat::printPE(std::string filename){
 
 // ktrim
 void TrimStat::print(std::string filename){
-    const char* path = filename.c_str();
-    std::ofstream fout(path);
+    std::string out_file = filename.substr(0, filename.find(".gz"));
+    std::ofstream fout(out_file.c_str());
     if(fout.fail()) { 
           logger.errorln("can not open file: " + filename);
           return;
