@@ -57,19 +57,21 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   std::thread producer(rabbit::trim::producer_pe_task, std::ref(rp), std::ref(logger), fastqPool, std::ref(queue1));
 
   // consumer
+  std::atomic_ullong  atomic_next_id;
+  std::atomic_init(&atomic_next_id, 0ULL);
   std::thread **consumer_threads = new std::thread* [consumer_num]; 
   if(rp.seqA.size()) 
   {
     // Ktrim
     for(int tn = 0; tn < consumer_num; tn++){
-      consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task2, std::ref(rp), fastqPool, std::ref(queue1), wbDataPool, std::ref(wbQueue1), std::ref(wbQueue2), std::ref(statsArr[tn]), std::ref(trimmers)));
+      consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task2, std::ref(rp), fastqPool, std::ref(queue1), wbDataPool, std::ref(wbQueue1), std::ref(wbQueue2), std::ref(statsArr[tn]), std::ref(trimmers), std::ref(atomic_next_id)));
     }
   }
   else
   {
     // Trimmomatic
     for(int tn = 0; tn < consumer_num; tn++){
-      consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task, std::ref(rp), fastqPool, std::ref(queue1), wbDataPool, std::ref(wbQueue1), std::ref(wbQueue2), std::ref(wbQueue3), std::ref(wbQueue4), std::ref(logQueue), std::ref(statsArr[tn]), std::ref(trimmers), tn));
+      consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task, std::ref(rp), fastqPool, std::ref(queue1), wbDataPool, std::ref(wbQueue1), std::ref(wbQueue2), std::ref(wbQueue3), std::ref(wbQueue4), std::ref(logQueue), std::ref(statsArr[tn]), std::ref(trimmers), tn, std::ref(atomic_next_id)));
     }
   }
 
@@ -292,7 +294,7 @@ int rabbit::trim::producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
 
 
 // trimmomatic comusmer task
-void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue1, WriterBufferDataQueue& wbQueue2,  WriterBufferDataQueue& wbQueue3, WriterBufferDataQueue& wbQueue4, WriterBufferDataQueue& logQueue, rabbit::log::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers, int threadId)
+void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue1, WriterBufferDataQueue& wbQueue2,  WriterBufferDataQueue& wbQueue3, WriterBufferDataQueue& wbQueue4, WriterBufferDataQueue& logQueue, rabbit::log::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers, int threadId, atomic_ullong& atomic_next_id)
 {
   rabbit::int64 chunk_id;
   rabbit::fq::FastqPairChunk* fqPairChunk = new rabbit::fq::FastqPairChunk;
@@ -406,11 +408,6 @@ void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
     wb3->size = pos3;
     wb4->size = pos4;
 
-    wbQueue1.Push(chunk_id, wb1);
-    wbQueue2.Push(chunk_id, wb2);
-    wbQueue3.Push(chunk_id, wb3);
-    wbQueue4.Push(chunk_id, wb4);
-    
 
     if(isLog)
     {
@@ -463,8 +460,15 @@ void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
       tb->data[pos_] = '\0';
       tb->size = pos_;
       ASSERT(pos_ > MEM_PER_CHUNK);
+      while(atomic_next_id != chunk_id);
       logQueue.Push(chunk_id, tb);
     }
+    while(atomic_next_id != chunk_id);
+    wbQueue1.Push(chunk_id, wb1);
+    wbQueue2.Push(chunk_id, wb2);
+    wbQueue3.Push(chunk_id, wb3);
+    wbQueue4.Push(chunk_id, wb4);
+    atomic_next_id++;
 
     fastqPool->Release(fqPairChunk->chunk->left_part);
     fastqPool->Release(fqPairChunk->chunk->right_part);
@@ -649,7 +653,7 @@ void rabbit::trim::writer_pe_task(rabbit::trim::RabbitTrimParam& rp, WriterBuffe
 
 
 // Ktrim consumer task
-void rabbit::trim::consumer_pe_task2(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue1, WriterBufferDataQueue& wbQueue2, rabbit::log::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers)
+void rabbit::trim::consumer_pe_task2(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue1, WriterBufferDataQueue& wbQueue2, rabbit::log::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers, std::atomic_ullong& atomic_next_id)
 {
   rabbit::int64 chunk_id;
   rabbit::fq::FastqPairChunk* fqPairChunk = new rabbit::fq::FastqPairChunk;
@@ -724,8 +728,10 @@ void rabbit::trim::consumer_pe_task2(rabbit::trim::RabbitTrimParam& rp, rabbit::
 
     fastqPool->Release(fqPairChunk->chunk->left_part);
     fastqPool->Release(fqPairChunk->chunk->right_part);
+    while(atomic_next_id != chunk_id);
     wbQueue1.Push(chunk_id, wb1);
     wbQueue2.Push(chunk_id, wb2);
+    atomic_next_id++;
   }
   wbQueue1.SetCompleted();
   wbQueue2.SetCompleted();

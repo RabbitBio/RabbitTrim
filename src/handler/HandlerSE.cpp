@@ -35,10 +35,12 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
 
 
   // consumer
+  std::atomic_ullong atomic_next_id;
+  std::atomic_init(&atomic_next_id, 0ULL);
   std::thread **consumer_threads = new std::thread* [consumer_num]; 
   for(int tn = 0; tn < consumer_num; tn++){
     // asm ("":::"memory");
-    consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_se_task, std::ref(rp), fastqPool, std::ref(queue1), wbDataPool, std::ref(queue2), std::ref(queue3), std::ref(statsArr[tn]), std::ref(trimmers), tn));
+    consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_se_task, std::ref(rp), fastqPool, std::ref(queue1), wbDataPool, std::ref(queue2), std::ref(queue3), std::ref(statsArr[tn]), std::ref(trimmers), tn, std::ref(atomic_next_id)));
   }
 
   // writer
@@ -127,7 +129,7 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
 
 
   // comusmer task
-  void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterDataQueue& dq2, TrimLogDataQueue& dq3, rabbit::log::TrimStat& rstats, const std::vector<rabbit::trim::Trimmer*>& trimmers, int threadId)
+  void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterDataQueue& dq2, TrimLogDataQueue& dq3, rabbit::log::TrimStat& rstats, const std::vector<rabbit::trim::Trimmer*>& trimmers, int threadId, std::atomic_ullong& atomic_next_id)
   {
     bool isReverse = rp.reverseFiles.size();
     bool isLog = rp.trimLog.size();
@@ -184,7 +186,6 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
       }
       wb->data[pos] = '\0';
       wb->size = pos;
-      dq2.Push(chunk_id, wb);
       if(isLog)
       {
         uint64_t pos_ = 0;
@@ -207,8 +208,12 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
           pos_ += tmp.size();
         }
         tb->data[pos_++] = '\0';
+        while(atomic_next_id != chunk_id);
         dq3.Push(chunk_id, tb);
       }
+      while(atomic_next_id != chunk_id);
+      dq2.Push(chunk_id, wb);
+      atomic_next_id++;
       fastqPool->Release(fqChunk->chunk);
     }
     dq2.SetCompleted();
