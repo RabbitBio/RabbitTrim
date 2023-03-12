@@ -460,8 +460,9 @@ void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
       tb->data[pos_] = '\0';
       tb->size = pos_;
       ASSERT(pos_ > MEM_PER_CHUNK);
-      while(atomic_next_id != chunk_id);
-      logQueue.Push(chunk_id, tb);
+      rabbit::int64 tmp_chunk_id = chunk_id; // chunk_id will increase after queue.Push() operation
+      while(atomic_next_id != tmp_chunk_id);
+      logQueue.Push(tmp_chunk_id, tb);
     }
     while(atomic_next_id != chunk_id);
     wbQueue1.Push(chunk_id, wb1);

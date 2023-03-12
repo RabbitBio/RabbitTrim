@@ -1014,7 +1014,7 @@ local size_t readn(int desc, unsigned char *buf, size_t len) {
 
 // Add by ylf
 // local size_t readFromQueue(moodycamel::ReaderWriterQueue<pair<char *, int>> *Q, atomic_int *wDone, pair<char *, int> &L,atomic_int *qNum, unsigned char *buf, size_t len) {
-local size_t readFromQueue(rabbit::trim::WriterBufferDataPool* wbDataPool, rabbit::trim::WriterDataQueue& dq2, pair<char *, int> &L, unsigned char *buf, size_t len) {
+local size_t readFromQueue(rabbit::trim::WriterBufferDataPool* wbDataPool, rabbit::trim::WriterBufferDataQueue& dq2, pair<char *, int> &L, unsigned char *buf, size_t len) {
 
   ssize_t ret;
   size_t got;
@@ -2203,7 +2203,7 @@ local void append_len(struct job *job, size_t len) {
 // threads will be launched and left running (waiting actually) to support
 // subsequent calls of parallel_compress().
 // local void parallel_compress(moodycamel::ReaderWriterQueue<pair<char *, int>> *Q, atomic_int *wDone, pair<char *, int> &L, atomic_int *qNum) {
-local void parallel_compress(rabbit::trim::WriterBufferDataPool* wbDataPool, rabbit::trim::WriterDataQueue& dq2, std::pair<char*,int>& L) {
+local void parallel_compress(rabbit::trim::WriterBufferDataPool* wbDataPool, rabbit::trim::WriterBufferDataQueue& dq2, std::pair<char*,int>& L) {
   //printf("111\n");
   long seq;                       // sequence number
   struct space *curr;             // input data to compress
@@ -4157,7 +4157,7 @@ local void out_push(void) {
 // Process provided input file, or stdin if path is NULL. process() can call
 // itself for recursive directory processing[small_map[*((int*)(pthread_getspecific(gtid)))]].
 // void process(char *path, moodycamel::ReaderWriterQueue<pair<char *, int>> *Q, atomic_int *wDone, pair<char *, int> &L, atomic_int *qNum) {
-void process(char* path, rabbit::trim::WriterBufferDataPool* wbDataPool, rabbit::trim::WriterDataQueue& dq2, std::pair<char*, int>& L){
+void process(char* path, rabbit::trim::WriterBufferDataPool* wbDataPool, rabbit::trim::WriterBufferDataQueue& dq2, std::pair<char*, int>& L){
 
   //printf("0000\n");
   volatile int method = -1;       // get_header() return value
@@ -4967,7 +4967,7 @@ pthread_mutex_t mutexPigz;
 
 // Process command line arguments.
 // int main_pigz(int argc, char **argv, moodycamel::ReaderWriterQueue<pair<char *, int>> *Q, atomic_int *wDone,  pair<char *, int> &L, atomic_int *qNum) {
-int main_pigz(int argc, char **argv, rabbit::trim::WriterBufferDataPool* wbDataPool, rabbit::trim::WriterDataQueue& dq2, std::pair<char*, int>& L) {
+int main_pigz(int argc, char **argv, rabbit::trim::WriterBufferDataPool* wbDataPool, rabbit::trim::WriterBufferDataQueue& dq2, std::pair<char*, int>& L) {
   //printf("pigz* gettid = %u\n", syscall(SYS_gettid));
   int tid = small_hash(syscall(SYS_gettid));
   //printf("pigz* tid = %d\n", tid);
