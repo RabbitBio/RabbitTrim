@@ -1,5 +1,8 @@
 #include "trimmer/IlluminaLongClippingSeq.h"
 #include <iomanip>
+#if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+#include <immintrin.h>
+#endif
 
 using namespace rabbit::trim;
 
@@ -28,12 +31,47 @@ IlluminaLongClippingSeq::IlluminaLongClippingSeq(rabbit::Logger& logger_, int ph
     }
 
     recPacks = new uint64[(rabbit::trim::MAX_READ_LENGTH + 15) * consumerNum_];
+    likelihoodTotal = new float[(rabbit::trim::MAX_READ_LENGTH) * consumerNum_];
+#if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+    logger_.errorln("Using vectorized in Long Clipping ...");
+    
+    seq_str = new char[seqLen + 31];
+    for(int i = 0; i < seqLen; i++)
+    {
+      seq_str[i] = seq[i];
+    }
+
+    phred_arr = new char[16];
+    all_N = new char[16];
+    for(int i = 0; i < 16; i++)
+    {
+      phred_arr[i] = phred;
+      all_N[i] = 'N';
+    }
+
+    awards = new float[8];
+    divide_arr = new float[8];
+    for(int i = 0; i < 8; i++)
+    {
+      awards[i] = LOG10_4;
+      divide_arr[i] = -10.0f;
+    }
+    
+#endif
 
 }
 IlluminaLongClippingSeq::~IlluminaLongClippingSeq(){
     delete [] fullPack;
     delete [] pack;
     delete [] recPacks;
+    delete [] likelihoodTotal;
+#if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && TRIM_USE_VEC
+    delete [] seq_str;
+    delete [] awards;
+    delete [] phred_arr;
+    delete [] divide_arr;
+    delete [] all_N;
+#endif
 }
 
 int IlluminaLongClippingSeq::readsSeqCompare(Reference& rec){
@@ -189,7 +227,7 @@ int IlluminaLongClippingSeq::readsSeqCompare(neoReference& rec, int threadId){
           int compLength = recCompLength < clipCompLength ? recCompLength : clipCompLength;
 
           assert(compLength > minSequenceOverlap);
-          float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset);
+          float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset, threadId);
           if(seqLikelihood >= minSequenceLikelihood) return offset;
         }
       }
@@ -344,15 +382,85 @@ float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int
 		return l;
 }
 
+float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset, int threadId){
+  // getQualityAsInteger
+  int len = rec.lseq;
+  char* rec_seq = (char*)(rec.base + rec.pseq);
+  char* rec_qual = (char*)(rec.base + rec.pqual);
+
+  // Location to start comparison
+  int recPos = recOffset > 0 ? recOffset : 0;
+  int clipPos = recOffset < 0 ? -recOffset : 0;
+  float* likelihood = likelihoodTotal + rabbit::trim::MAX_READ_LENGTH * threadId;
+#if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+  char* tmp_rec_qual = rec_qual + recPos;
+  char* tmp_rec_seq = rec_seq + recPos;
+  char* tmp_seq_str = seq_str + clipPos;
+  int nums = (overlap + 15) / 16;
+  
+  for(int i = 0; i < nums; i++)
+  {
+    __m128i vphred  = _mm_loadu_si128((__m128i_u*)phred_arr);
+    __m128i vqual  = _mm_loadu_si128((__m128i_u*)(tmp_rec_qual + i * 16));
+    __m128i vscore  = _mm_sub_epi8(vqual, vphred);
+    __m256i vscore_1 = _mm256_cvtepi8_epi32(vscore);
+    __m128i vscore_sr8 = _mm_srli_si128(vscore, 0x8);
+    __m256i vscore_2 = _mm256_cvtepi8_epi32(vscore_sr8);
+    __m256 vscore_1_ps = _mm256_cvtepi32_ps(vscore_1);
+    __m256 vscore_2_ps = _mm256_cvtepi32_ps(vscore_2);
+    __m256 vdivide = _mm256_loadu_ps(divide_arr);
+    __m256 vscore_0 = _mm256_setzero_ps();
+    vscore_1_ps = _mm256_div_ps(vscore_1_ps, vdivide);
+    vscore_2_ps = _mm256_div_ps(vscore_2_ps, vdivide);
+
+    __m128i vrec  = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq + i * 16));
+
+    __m128i vallN = _mm_loadu_si128((__m128i_u*)(all_N));
+    __m128i vres3  = _mm_cmpeq_epi8(vrec, vallN);
+    __m128i vres3_sr8 = _mm_srli_si128(vres3, 0x8);
+    __m256i vlow3 = _mm256_cvtepi8_epi32(vres3);
+    __m256i vhigh3 = _mm256_cvtepi8_epi32(vres3_sr8);
+    __m256 vlow3_ps = _mm256_cvtepi32_ps(vlow3);
+    __m256 vhigh3_ps = _mm256_cvtepi32_ps(vhigh3);
+    vscore_1_ps = _mm256_blendv_ps(vscore_1_ps, vscore_0, vlow3_ps);
+    vscore_2_ps = _mm256_blendv_ps(vscore_2_ps, vscore_0, vhigh3_ps);
+    __m128i vclip = _mm_loadu_si128((__m128i_u*)(tmp_seq_str + i * 16));
+    __m128i vres1  = _mm_cmpeq_epi8(vrec, vclip);
+    __m128i vres1_sr8 = _mm_srli_si128(vres1, 0x8);
+    __m256i vlow1 = _mm256_cvtepi8_epi32(vres1);
+    __m256i vhigh1 = _mm256_cvtepi8_epi32(vres1_sr8);
+    __m256 vlow1_ps = _mm256_cvtepi32_ps(vlow1);
+    __m256 vhigh1_ps = _mm256_cvtepi32_ps(vhigh1);
+    __m256 vawards = _mm256_loadu_ps(awards);
+    vscore_1_ps = _mm256_blendv_ps(vscore_1_ps, vawards, vlow1_ps);
+    vscore_2_ps = _mm256_blendv_ps(vscore_2_ps, vawards, vhigh1_ps);
+    _mm256_storeu_ps(likelihood + i * 16,      vscore_1_ps);
+    _mm256_storeu_ps(likelihood + i * 16 + 8,  vscore_2_ps);
+  }
+
+#else
+  for(int i = 0; i < overlap; i++){
+    char ch1 = rec_seq[recPos + i];
+    char ch2 = seq[clipPos + i];
+
+    float penalty = -1 * ((bool)((1 << ((ch1 >> 1) & 7)) & 15)) * (rec_qual[recPos + i] - phred) / 10.0f;
+    float s = (((ch1 >> 1) & 3) == ((ch2 >> 1) & 3)) * LOG10_4 + (((ch1 >> 1) & 3) != ((ch2 >> 1) & 3)) * penalty;
+    likelihood[i] = s;
+  }
+#endif
+  float l = calculateMaximumRange(likelihood, overlap);
+  return l;
+}
+
 
 float IlluminaLongClippingSeq::calculateMaximumRange(float* vals, int valsLen){
-    // 找到vals子区间元素和的最大值
-    float sum = 0;
-    float max = vals[0];
-    for(int i = 0; i < valsLen; i++ ){
-        if(sum < 0) sum = vals[i];
-        else sum += vals[i];
-        if(sum > max) max = sum;
-    }
-    return max;
+  // 找到vals子区间元素和的最大值
+  float sum = 0;
+  float max = vals[0];
+  for(int i = 0; i < valsLen; i++ ){
+    if(sum < 0) sum = vals[i];
+    else sum += vals[i];
+    if(sum > max) max = sum;
+  }
+  return max;
 }

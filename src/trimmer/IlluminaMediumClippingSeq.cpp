@@ -1,8 +1,11 @@
 // #include <iomanip>
 #include "trimmer/IlluminaMediumClippingSeq.h"
 
-using namespace rabbit::trim;
+#if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+#include <immintrin.h>
+#endif
 
+using namespace rabbit::trim;
 
 IlluminaMediumClippingSeq::IlluminaMediumClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_, int consumerNum_) :logger(logger_){
     logger.infoln("Using Medium Clipping Sequence: '" + seq_ + "'");
@@ -25,11 +28,48 @@ IlluminaMediumClippingSeq::IlluminaMediumClippingSeq(rabbit::Logger& logger_, in
     }
 
     recPacks = new uint64[(rabbit::trim::MAX_READ_LENGTH + 15) * consumerNum_];
+    likelihoodTotal = new float[consumerNum_ * 32];
+
+#if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+    logger_.errorln("Using vectorized in Medium Clipping ...");
+    
+    seq_str = new char[seqLen + 31];
+    for(int i = 0; i < seqLen; i++)
+    {
+      seq_str[i] = seq[i];
+    }
+
+    phred_arr = new char[16];
+    all_N = new char[16];
+    for(int i = 0; i < 16; i++)
+    {
+      phred_arr[i] = phred;
+      all_N[i] = 'N';
+    }
+
+    awards = new float[8];
+    divide_arr = new float[8];
+    for(int i = 0; i < 8; i++)
+    {
+      awards[i] = LOG10_4;
+      divide_arr[i] = -10.0f;
+    }
+    
+#endif
 }
 
 IlluminaMediumClippingSeq::~IlluminaMediumClippingSeq(){
     delete [] pack;
     delete [] recPacks;
+    delete [] likelihoodTotal;
+    
+#if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && TRIM_USE_VEC
+    delete [] seq_str;
+    delete [] awards;
+    delete [] phred_arr;
+    delete [] divide_arr;
+    delete [] all_N;
+#endif
 }
 
 int IlluminaMediumClippingSeq::readsSeqCompare(Reference& rec){
@@ -204,11 +244,15 @@ int IlluminaMediumClippingSeq::readsSeqCompare(neoReference& rec, int threadId){
           int compLength = recCompLength < clipCompLength ? recCompLength : clipCompLength;
 
           assert(compLength > minSequenceOverlap);
-          float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset);
-          if(seqLikelihood >= minSequenceLikelihood) return offset;
+          // if(compLength > minSequenceOverlap)
+          // {
+            float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset, threadId);
+            if(seqLikelihood >= minSequenceLikelihood) return offset;
+          // }
         }
       }
     }
+    delete [] cnt;
     return 1 << 30;
 }
 
@@ -377,5 +421,232 @@ float IlluminaMediumClippingSeq::calculateDifferenceQuality(neoReference& rec, i
     // calculateMaximumRange()
     float l = calculateMaximumRange(likelihood, overlap);
     return l;
+}
+
+float IlluminaMediumClippingSeq::calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset, int threadId){
+  // getQualityAsInteger
+  int len = rec.lseq;
+  char* rec_seq = (char*)(rec.base + rec.pseq);
+  char* rec_qual = (char*)(rec.base + rec.pqual);
+
+  // Location to start comparison
+  int recPos = recOffset > 0 ? recOffset : 0;
+  int clipPos = recOffset < 0 ? -recOffset : 0;
+  float* likelihood = likelihoodTotal + threadId * 32;
+
+
+#if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+  char* tmp_rec_qual = rec_qual + recPos;
+  char* tmp_rec_seq = rec_seq + recPos;
+  char* tmp_seq_str = seq_str + clipPos;
+  // float* penalty = penaltyTotal + threadId * 32;
+  // char* tmp_rec_seq = tmpRecSeqTotal + threadId * 32;
+  // for(int i = 0; i < overlap; i++)
+  // {
+  //   char ch1 = rec_seq[recPos + i];
+  //   tmp_rec_seq[i] = ch1;
+  //   float tmp_penalty =  -1 * ((bool)((1 << ((ch1 >> 1) & 7)) & 15)) * (rec_qual[recPos + i] - phred) / 10.0f;
+  //   penalty[i] = tmp_penalty;
+  // }
+  
+  // int nums = (overlap + 15) / 16;
+  
+  // for(int i = 0; i < nums; i++)
+  // {
+  //   __m128i vphred  = _mm_loadu_si128((__m128i_u*)phred_arr);
+  //   __m128i vqual1  = _mm_loadu_si128((__m128i_u*)(tmp_rec_qual + i * 16));
+  //   __m128i vscore1  = _mm_sub_epi8(vqual1, vphred);
+  //   __m256i vscore1_1 = _mm256_cvtepi8_epi32(vscore1);
+  //   __m128i vscore1_sr8 = _mm_srli_si128(vscore1, 0x8);
+  //   __m256i vscore1_2 = _mm256_cvtepi8_epi32(vscore1_sr8);
+  //   __m256 vscore1_1_ps = _mm256_cvtepi32_ps(vscore1_1);
+  //   __m256 vscore1_2_ps = _mm256_cvtepi32_ps(vscore1_2);
+  //   __m256 vdivide = _mm256_loadu_ps(divide_arr);
+  //   __m256 vscore_0 = _mm256_setzero_ps();
+  //   vscore1_1_ps = _mm256_div_ps(vscore1_1_ps, vdivide);
+  //   vscore1_2_ps = _mm256_div_ps(vscore1_2_ps, vdivide);
+
+  //   __m128i vrec1  = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq + i * 16));
+
+  //   __m128i vallN = _mm_loadu_si128((__m128i_u*)(all_N));
+  //   __m128i vres3  = _mm_cmpeq_epi8(vrec1, vallN);
+  //   __m128i vres3_sr8 = _mm_srli_si128(vres3, 0x8);
+  //   __m256i vlow3 = _mm256_cvtepi8_epi32(vres3);
+  //   __m256i vhigh3 = _mm256_cvtepi8_epi32(vres3_sr8);
+  //   __m256 vlow3_ps = _mm256_cvtepi32_ps(vlow3);
+  //   __m256 vhigh3_ps = _mm256_cvtepi32_ps(vhigh3);
+  //   vscore1_1_ps = _mm256_blendv_ps(vscore1_1_ps, vscore_0, vlow3_ps);
+  //   vscore1_2_ps = _mm256_blendv_ps(vscore1_2_ps, vscore_0, vhigh3_ps);
+  //   __m128i vclip1 = _mm_loadu_si128((__m128i_u*)(tmp_seq_str + i * 16));
+  //   __m128i vres1  = _mm_cmpeq_epi8(vrec1, vclip1);
+  //   __m128i vres1_sr8 = _mm_srli_si128(vres1, 0x8);
+  //   __m256i vlow1 = _mm256_cvtepi8_epi32(vres1);
+  //   __m256i vhigh1 = _mm256_cvtepi8_epi32(vres1_sr8);
+  //   __m256 vlow1_ps = _mm256_cvtepi32_ps(vlow1);
+  //   __m256 vhigh1_ps = _mm256_cvtepi32_ps(vhigh1);
+  //   __m256 vawards = _mm256_loadu_ps(awards);
+  //   vscore1_1_ps = _mm256_blendv_ps(vscore1_1_ps, vawards, vlow1_ps);
+  //   vscore1_2_ps = _mm256_blendv_ps(vscore1_2_ps, vawards, vhigh1_ps);
+  //   _mm256_storeu_ps(likelihood + i * 16,      vscore1_1_ps);
+  //   _mm256_storeu_ps(likelihood + i * 16 + 8,  vscore1_2_ps);
+  // }
+
+  // __m128i vphred  = _mm_loadu_si128((__m128i_u*)phred_arr);
+  // __m128i vqual1  = _mm_loadu_si128((__m128i_u*)tmp_rec_qual);
+  // __m128i vscore1  = _mm_sub_epi8(vqual1, vphred);
+  // __m256i vscore1_1 = _mm256_cvtepi8_epi32(vscore1);
+  // __m128i vscore1_sr8 = _mm_srli_si128(vscore1, 0x8);
+  // __m256i vscore1_2 = _mm256_cvtepi8_epi32(vscore1_sr8);
+  // __m256 vscore1_1_ps = _mm256_cvtepi32_ps(vscore1_1);
+  // __m256 vscore1_2_ps = _mm256_cvtepi32_ps(vscore1_2);
+  // __m256 vdivide = _mm256_loadu_ps(divide_arr);
+  // __m256 vscore_0 = _mm256_setzero_ps();
+  // vscore1_1_ps = _mm256_div_ps(vscore1_1_ps, vdivide);
+  // vscore1_2_ps = _mm256_div_ps(vscore1_2_ps, vdivide);
+
+  // __m128i vrec1  = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq));
+
+  // __m128i vallN = _mm_loadu_si128((__m128i_u*)(all_N));
+  // __m128i vres3  = _mm_cmpeq_epi8(vrec1, vallN);
+  // __m128i vres3_sr8 = _mm_srli_si128(vres3, 0x8);
+  // __m256i vlow3 = _mm256_cvtepi8_epi32(vres3);
+  // __m256i vhigh3 = _mm256_cvtepi8_epi32(vres3_sr8);
+  // __m256 vlow3_ps = _mm256_cvtepi32_ps(vlow3);
+  // __m256 vhigh3_ps = _mm256_cvtepi32_ps(vhigh3);
+  // vscore1_1_ps = _mm256_blendv_ps(vscore1_1_ps, vscore_0, vlow3_ps);
+  // vscore1_2_ps = _mm256_blendv_ps(vscore1_2_ps, vscore_0, vhigh3_ps);
+  // __m128i vclip1 = _mm_loadu_si128((__m128i_u*)(tmp_seq_str));
+  // __m128i vres1  = _mm_cmpeq_epi8(vrec1, vclip1);
+  // __m128i vres1_sr8 = _mm_srli_si128(vres1, 0x8);
+  // __m256i vlow1 = _mm256_cvtepi8_epi32(vres1);
+  // __m256i vhigh1 = _mm256_cvtepi8_epi32(vres1_sr8);
+  // __m256 vlow1_ps = _mm256_cvtepi32_ps(vlow1);
+  // __m256 vhigh1_ps = _mm256_cvtepi32_ps(vhigh1);
+  // __m256 vawards = _mm256_loadu_ps(awards);
+  // vscore1_1_ps = _mm256_blendv_ps(vscore1_1_ps, vawards, vlow1_ps);
+  // vscore1_2_ps = _mm256_blendv_ps(vscore1_2_ps, vawards, vhigh1_ps);
+  // _mm256_storeu_ps(likelihood,      vscore1_1_ps);
+  // _mm256_storeu_ps(likelihood + 8,  vscore1_2_ps);
+  // __m128i vqual2  = _mm_loadu_si128((__m128i_u*)(tmp_rec_qual + 16));
+  // __m128i vscore2  = _mm_sub_epi8(vqual2, vphred);
+
+  // __m128i vscore2_sr8 = _mm_srli_si128(vscore2, 0x8);
+  // __m256i vscore2_1 = _mm256_cvtepi8_epi32(vscore2);
+  // __m256i vscore2_2 = _mm256_cvtepi8_epi32(vscore2_sr8);
+  // __m256 vscore2_1_ps = _mm256_cvtepi32_ps(vscore2_1);
+  // __m256 vscore2_2_ps = _mm256_cvtepi32_ps(vscore2_2);
+
+  // vscore2_1_ps = _mm256_div_ps(vscore2_1_ps, vdivide);
+  // vscore2_2_ps = _mm256_div_ps(vscore2_2_ps, vdivide);
+
+  // __m128i vrec2  = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq + 16));
+
+  // __m128i vres4  = _mm_cmpeq_epi8(vrec2, vallN);
+  // __m128i vres4_sr8 = _mm_srli_si128(vres4, 0x8);
+  // __m256i vlow4 = _mm256_cvtepi8_epi32(vres4);
+  // __m256i vhigh4 = _mm256_cvtepi8_epi32(vres4_sr8);
+  // __m256 vlow4_ps = _mm256_cvtepi32_ps(vlow4);
+  // __m256 vhigh4_ps = _mm256_cvtepi32_ps(vhigh4);
+  // vscore2_1_ps = _mm256_blendv_ps(vscore2_1_ps, vscore_0, vlow4_ps);
+  // vscore2_2_ps = _mm256_blendv_ps(vscore2_2_ps, vscore_0, vhigh4_ps);
+
+  // __m128i vclip2 = _mm_loadu_si128((__m128i_u*)(tmp_seq_str + 16));
+  // __m128i vres2  = _mm_cmpeq_epi8(vrec2, vclip2);
+  // __m128i vres2_sr8 = _mm_srli_si128(vres2, 0x8);
+  // __m256i vlow2 = _mm256_cvtepi8_epi32(vres2);
+  // __m256i vhigh2 = _mm256_cvtepi8_epi32(vres2_sr8);
+  // __m256 vlow2_ps = _mm256_cvtepi32_ps(vlow2);
+  // __m256 vhigh2_ps = _mm256_cvtepi32_ps(vhigh2);
+
+  // vscore2_1_ps = _mm256_blendv_ps(vscore2_1_ps, vawards, vlow2_ps);
+  // vscore2_2_ps = _mm256_blendv_ps(vscore2_2_ps, vawards, vhigh2_ps);
+  // _mm256_storeu_ps(likelihood + 16, vscore2_1_ps);
+  // _mm256_storeu_ps(likelihood + 24, vscore2_2_ps);
+
+  
+  __m128i vphred  = _mm_loadu_si128((__m128i_u*)phred_arr);
+  __m128i vqual1  = _mm_loadu_si128((__m128i_u*)tmp_rec_qual);
+  __m128i vqual2  = _mm_loadu_si128((__m128i_u*)(tmp_rec_qual + 16));
+  __m128i vscore1  = _mm_sub_epi8(vqual1, vphred);
+  __m128i vscore2  = _mm_sub_epi8(vqual2, vphred);
+  __m256i vscore1_1 = _mm256_cvtepi8_epi32(vscore1);
+  __m256i vscore2_1 = _mm256_cvtepi8_epi32(vscore2);
+  __m128i vscore1_sr8 = _mm_srli_si128(vscore1, 0x8);
+  __m128i vscore2_sr8 = _mm_srli_si128(vscore2, 0x8);
+  __m256i vscore1_2 = _mm256_cvtepi8_epi32(vscore1_sr8);
+  __m256i vscore2_2 = _mm256_cvtepi8_epi32(vscore2_sr8);
+  __m256 vdivide = _mm256_loadu_ps(divide_arr);
+  __m256 vscore1_1_ps = _mm256_cvtepi32_ps(vscore1_1);
+  vscore1_1_ps = _mm256_div_ps(vscore1_1_ps, vdivide);
+  __m256 vscore1_2_ps = _mm256_cvtepi32_ps(vscore1_2);
+  vscore1_2_ps = _mm256_div_ps(vscore1_2_ps, vdivide);
+  __m256 vscore2_1_ps = _mm256_cvtepi32_ps(vscore2_1);
+  vscore2_1_ps = _mm256_div_ps(vscore2_1_ps, vdivide);
+  __m256 vscore2_2_ps = _mm256_cvtepi32_ps(vscore2_2);
+  vscore2_2_ps = _mm256_div_ps(vscore2_2_ps, vdivide);
+
+  __m256 vscore_0 = _mm256_setzero_ps();
+  __m128i vrec1  = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq));
+  __m128i vrec2  = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq + 16));
+
+  __m128i vallN = _mm_loadu_si128((__m128i_u*)(all_N));
+  __m128i vres3  = _mm_cmpeq_epi8(vrec1, vallN);
+  __m128i vres4  = _mm_cmpeq_epi8(vrec2, vallN);
+  __m256i vlow3 = _mm256_cvtepi8_epi32(vres3);
+  __m128i vres3_sr8 = _mm_srli_si128(vres3, 0x8);
+  __m256i vhigh3 = _mm256_cvtepi8_epi32(vres3_sr8);
+  __m256 vlow3_ps = _mm256_cvtepi32_ps(vlow3);
+  __m256 vhigh3_ps = _mm256_cvtepi32_ps(vhigh3);
+  vscore1_1_ps = _mm256_blendv_ps(vscore1_1_ps, vscore_0, vlow3_ps);
+  vscore1_2_ps = _mm256_blendv_ps(vscore1_2_ps, vscore_0, vhigh3_ps);
+  __m256i vlow4 = _mm256_cvtepi8_epi32(vres4);
+  __m128i vres4_sr8 = _mm_srli_si128(vres4, 0x8);
+  __m256i vhigh4 = _mm256_cvtepi8_epi32(vres4_sr8);
+  __m256 vlow4_ps = _mm256_cvtepi32_ps(vlow4);
+  __m256 vhigh4_ps = _mm256_cvtepi32_ps(vhigh4);
+  vscore2_1_ps = _mm256_blendv_ps(vscore2_1_ps, vscore_0, vlow4_ps);
+  vscore2_2_ps = _mm256_blendv_ps(vscore2_2_ps, vscore_0, vhigh4_ps);
+
+  __m128i vclip1 = _mm_loadu_si128((__m128i_u*)(tmp_seq_str));
+  __m128i vclip2 = _mm_loadu_si128((__m128i_u*)(tmp_seq_str + 16));
+  __m128i vres1  = _mm_cmpeq_epi8(vrec1, vclip1);
+  __m128i vres2  = _mm_cmpeq_epi8(vrec2, vclip2);
+  __m128i vres1_sr8 = _mm_srli_si128(vres1, 0x8);
+  __m128i vres2_sr8 = _mm_srli_si128(vres2, 0x8);
+  __m256i vlow1 = _mm256_cvtepi8_epi32(vres1);
+  __m256i vhigh1 = _mm256_cvtepi8_epi32(vres1_sr8);
+  __m256 vlow1_ps = _mm256_cvtepi32_ps(vlow1);
+  __m256 vhigh1_ps = _mm256_cvtepi32_ps(vhigh1);
+  __m256i vlow2 = _mm256_cvtepi8_epi32(vres2);
+  __m256i vhigh2 = _mm256_cvtepi8_epi32(vres2_sr8);
+  __m256 vlow2_ps = _mm256_cvtepi32_ps(vlow2);
+  __m256 vhigh2_ps = _mm256_cvtepi32_ps(vhigh2);
+
+  __m256 vawards = _mm256_loadu_ps(awards);
+  vscore1_1_ps = _mm256_blendv_ps(vscore1_1_ps, vawards, vlow1_ps);
+  vscore1_2_ps = _mm256_blendv_ps(vscore1_2_ps, vawards, vhigh1_ps);
+  vscore2_1_ps = _mm256_blendv_ps(vscore2_1_ps, vawards, vlow2_ps);
+  vscore2_2_ps = _mm256_blendv_ps(vscore2_2_ps, vawards, vhigh2_ps);
+  _mm256_storeu_ps(likelihood,      vscore1_1_ps);
+  _mm256_storeu_ps(likelihood + 8,  vscore1_2_ps);
+  _mm256_storeu_ps(likelihood + 16, vscore2_1_ps);
+  _mm256_storeu_ps(likelihood + 24, vscore2_2_ps);
+
+#else
+
+  for(int i = 0; i < overlap; i++){
+    char ch1 = rec_seq[recPos + i];
+    char ch2 = seq[clipPos + i];
+
+    float penalty =  -1 * ((bool)((1 << ((ch1 >> 1) & 7)) & 15)) * (rec_qual[recPos + i] - phred) / 10.0f;
+
+    float s = (((ch1 >> 1) & 3) == ((ch2 >> 1) & 3)) * LOG10_4 + (((ch1 >> 1) & 3) != ((ch2 >> 1) & 3)) * penalty;
+    likelihood[i] = s;
+
+  }
+#endif
+  // calculateMaximumRange()
+  float l = calculateMaximumRange(likelihood, overlap);
+  return l;
 }
 

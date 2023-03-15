@@ -31,6 +31,7 @@ namespace rabbit
                     int readsSeqCompare(neoReference& rec);
 
                     uint64* packSeqExternal(neoReference& rec, int threadId);
+                    float calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset, int threadId);
                     int readsSeqCompare(neoReference& rec, int threadId);
 
                 private:
@@ -46,6 +47,14 @@ namespace rabbit
                     int minSequenceOverlap;
                     int consumerNum;
                     uint64* recPacks;
+                    float* likelihoodTotal;
+#if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+                    char* seq_str;
+                    float* awards;
+                    char* phred_arr;
+                    char* all_N;
+                    float* divide_arr;
+#endif
 
 
             

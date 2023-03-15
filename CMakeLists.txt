@@ -8,9 +8,10 @@ set(EXECUTABLE_OUTPUT_PATH .)
 set(CMAKE_CXX_COMPILER "/usr/bin/g++")
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(COMMON_FLAGS "-O3 -march=native -fopt-info-vec -g")
+set(COMMON_FLAGS "-O3 -march=native -fopt-info-vec -g -msse2 -mavx -mavx2")
 
 option(USE_OMP "Specify whether to use openMP" OFF)
+option(TRIM_USE_VEC "Specify whether to use vectorization" OFF)
 
 # cmake build type
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")
@@ -29,11 +30,17 @@ endif("${CMAKE_BUILD_TYPE}" STREQUAL "release")
 if(USE_OMP)
   set(COMMON_FLAGS "${COMMON_FLAGS} -fopenmp")
 endif()
+if(TRIM_USE_VEC)
+  set(COMMON_FLAGS "${COMMON_FLAGS} -DTRIM_USE_VEC")
+endif()
+
+
 
 if(DEFINED IGZIP_PATH)
   message(STATUS "Using igzip : ${IGZIP_PATH}")
-  include_directories(${IGZIP_PATH}/include/isa-l/)
+  include_directories(${IGZIP_PATH}/include/isa-l)
   link_directories(${IGZIP_PATH}/lib64)
+  link_directories(${IGZIP_PATH}/lib32)
   link_directories(${IGZIP_PATH}/lib)
   set(COMMON_FLAGS "${COMMON_FLAGS} -DUSE_IGZIP")
 endif()

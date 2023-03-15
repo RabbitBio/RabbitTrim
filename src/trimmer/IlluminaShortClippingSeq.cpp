@@ -1,4 +1,7 @@
 #include "trimmer/IlluminaShortClippingSeq.h"
+#if defined __SSE2__ && defined __AVX__ && defined __AVX2__
+#include <immintrin.h>
+#endif
 
 #define likely(x) __builtin_expect(!!(x),1)
 #define unlikely(x) __builtin_expect(!!(x),0)
@@ -70,7 +73,8 @@ IlluminaShortClippingSeq::IlluminaShortClippingSeq(rabbit::Logger& logger_, int 
     // packSeqExternal clipPack
     pack = new uint64[seqLen];
     uint64 pack_ = 0ULL;
-    for(int i = 0; i < 15 + seqLen ; i++){
+    for(int i = 0; i < 15 + seqLen ; i++)
+    {
         int tmp = 0;
         if(i < seqLen)
             // tmp = packCh(seq.at(i), false);
@@ -81,11 +85,42 @@ IlluminaShortClippingSeq::IlluminaShortClippingSeq(rabbit::Logger& logger_, int 
     
     // for each thread, create one rec pack
     recPacks = new uint64[(rabbit::trim::MAX_READ_LENGTH + 15) * consumerNum_];
+    likelihoodTotal = new float[16 * consumerNum_];
+// #if defined __SSE2__ && defined __AVX__ && defined __AVX2__
+//     seq_str = new char[seq.size() + 15];
+//     for(int i = 0; i < seq.size(); i++)
+//     {
+//       seq_str[i] = seq[i];
+//     }
+//     phred_arr = new char[16];
+//     all_N = new char[16];
+//     
+//     for(int i = 0; i < 16; i++)
+//     {
+//       phred_arr[i] = phred;
+//       all_N[i] = 'N';
+//     }
+//     awards = new float[8];
+//     divide_arr = new float[8];
+//     for(int i = 0; i < 8; i++)
+//     {
+//       awards[i] = LOG10_4;
+//       divide_arr[i] = -10.0f;
+//     }
+// #endif
 }
 
 IlluminaShortClippingSeq::~IlluminaShortClippingSeq(){
     delete [] pack;
     delete [] recPacks;
+    delete [] likelihoodTotal;
+// #if defined __SSE2__ && defined __AVX__ && defined __AVX2__
+//     delete [] seq_str;
+//     delete [] awards;
+//     delete [] phred_arr;
+//     delete [] all_N;
+//     delete [] divide_arr;
+// #endif
 }
 
 
@@ -141,6 +176,19 @@ int IlluminaShortClippingSeq::readsSeqCompare(neoReference& rec, int threadId){
 
     int packRecMax = packRecLen - minSequenceOverlap;
     int packClipMax = packClipLen - minSequenceOverlap; // 是不是应该+1呀？ 不然可能为0
+
+// #if defined __SSE2__ && defined __AVX__ && defined __AVX2__
+//     // get penalty score related to read quality
+//     char* rec_seq = (char*)(rec.base + rec.pseq);
+//     char* rec_qual = (char*)(rec.base + rec.pqual);
+//     float* recPenaltyScore = penaltyScore + (rabbit::trim::MAX_READ_LENGTH + 15) * threadId;
+//     // auto vectorized
+//     for(int i = 0; i < packRecLen; i++)
+//     {
+//       // recPenaltyScore[i] = -1 * ((bool)((1 << ((rec_seq[i] >> 1) & 7)) & 15)) * (rec_qual[i] - phred) / 10.0f;
+//       recPenaltyScore[i] = -1 * ((bool)(rec_seq[i] & 0x11)) *  (rec_qual[i] - phred) /  10.0f;
+//     }
+// #endif
     
     
     // offset 从可能的最小值到最大值依次选择 保持i j 的相对关系寻找 直到第一个offset满足 (效果不好...
@@ -254,10 +302,11 @@ int IlluminaShortClippingSeq::readsSeqCompare(neoReference& rec, int threadId){
 
             // debug  compLength 是不是一定大于minSequenceOverlap
             assert(compLength > minSequenceOverlap);
-            if(compLength > minSequenceOverlap){
-              float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset);
+            // if(compLength > minSequenceOverlap){
+              // float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset);
+              float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset, threadId);
               if(seqLikelihood >= minSequenceLikelihood) return offset;
-            }
+            // }
           }
         }
     }
@@ -359,10 +408,10 @@ int IlluminaShortClippingSeq::readsSeqCompare(neoReference& rec){
 
             // debug  compLength 是不是一定大于minSequenceOverlap
             assert(compLength > minSequenceOverlap);
-            if(compLength > minSequenceOverlap){
+            // if(compLength > minSequenceOverlap){
               float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset);
               if(seqLikelihood >= minSequenceLikelihood) return offset;
-            }
+            // }
           }
         }
     }
@@ -521,5 +570,70 @@ float IlluminaShortClippingSeq::calculateDifferenceQuality(neoReference& rec, in
     }
     // calculateMaximumRange()
     float l = calculateMaximumRange(likelihood, overlap);
+    delete [] likelihood;
     return l;
+}
+
+float IlluminaShortClippingSeq::calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset, int threadId){
+  char* rec_seq = (char*)(rec.base + rec.pseq);
+  char* rec_qual = (char*)(rec.base + rec.pqual);
+  // Location to start comparison
+  int recPos = recOffset > 0 ? recOffset : 0;
+  int clipPos = recOffset < 0 ? -recOffset : 0;
+
+  float* likelihood = likelihoodTotal + threadId * 16;
+// #if defined __SSE2__ && defined __AVX__ && defined __AVX2__
+//   // overlap must be less than 16
+//   char* tmp_rec_qual = rec_qual + recPos;
+//   char* tmp_rec_seq = rec_seq + recPos;
+//   char* tmp_seq_str = seq_str + clipPos;
+// 
+//   
+//   __m128i vphred  = _mm_loadu_si128((__m128i_u*)phred_arr);
+//   __m128i vqual  = _mm_loadu_si128((__m128i_u*)tmp_rec_qual);
+//   __m128i vscore1  = _mm_sub_epi8(vqual, vphred);
+// 
+//   __m256i vscore1_1 = _mm256_cvtepi8_epi32(vscore1);
+//   __m128i vscore1_sr8 = _mm_srli_si128(vscore1, 0x8);
+//   __m256i vscore1_2 = _mm256_cvtepi8_epi32(vscore1_sr8);
+//   __m256 vscore1_1_ps = _mm256_cvtepi32_ps(vscore1_1);
+//   __m256 vscore1_2_ps = _mm256_cvtepi32_ps(vscore1_2);
+// 
+//   __m256 vdivide = _mm256_loadu_ps(divide_arr);
+//   __m256 vscore_0 = _mm256_setzero_ps();
+//   vscore1_1_ps = _mm256_div_ps(vscore1_1_ps, vdivide);
+//   vscore1_2_ps = _mm256_div_ps(vscore1_2_ps, vdivide);
+// 
+// 
+//   __m128i vrec  = _mm_loadu_si128((__m128i_u*)tmp_rec_seq);
+//   __m128i vclip = _mm_loadu_si128((__m128i_u*)tmp_seq_str);
+//   __m128i vres  = _mm_cmpeq_epi8(vrec, vclip);
+//   __m128i vres_sr8 = _mm_srli_si128(vres, 0x8);
+//   __m256i vlow = _mm256_cvtepi8_epi32(vres);
+//   __m256i vhigh = _mm256_cvtepi8_epi32(vres_sr8);
+//   __m256 vlow_ps = _mm256_cvtepi32_ps(vlow);
+//   __m256 vhigh_ps = _mm256_cvtepi32_ps(vhigh);
+// 
+//   __m256 vawards = _mm256_loadu_ps(awards);
+//   vscore1_1_ps = _mm256_blendv_ps(vscore1_1_ps, vawards, vlow_ps);
+//   vscore1_2_ps = _mm256_blendv_ps(vscore1_2_ps, vawards, vhigh_ps);
+//   _mm256_storeu_ps(likelihood, vscore1_1_ps);
+//   _mm256_storeu_ps(likelihood + 8, vscore1_2_ps);
+// 
+// #else
+  for(int i = 0; i < overlap; i++)
+  {
+    char ch1 = rec_seq[recPos + i];
+    char ch2 = seq.at(clipPos + i);
+
+    float penalty =  -1 * ((bool)((1 << ((ch1 >> 1) & 7)) & 15)) * (rec_qual[recPos + i] - phred) / 10.0f;
+    // float penalty =  -1 * ((bool)(ch1 & 0x11)) * (rec_qual[recPos + i] - phred) / 10.0f;
+
+    float s = (((ch1 >> 1) & 3) == ((ch2 >> 1) & 3)) * LOG10_4 +  (((ch1 >> 1) & 3) != ((ch2 >> 1) & 3)) * penalty;
+    likelihood[i] = s;
+  }
+  // calculateMaximumRange()
+// #endif
+  float l = calculateMaximumRange(likelihood, overlap);
+  return l;
 }
