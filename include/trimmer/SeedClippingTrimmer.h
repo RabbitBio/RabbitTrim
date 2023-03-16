@@ -29,6 +29,16 @@ namespace rabbit
 #if defined __SSE2__  && defined TRIM_USE_VEC
             char* seqA_str;
             char* seqB_str;
+            
+            char* index_1_1_str;
+            char* index_1_2_str;
+            char* index_1_3_str;
+            char* index_2_1_str;
+            char* index_2_2_str;
+            char* index_2_3_str;
+            char* index_3_1_str;
+            char* index_3_2_str;
+            char* index_3_3_str;
 #endif
 
         public:

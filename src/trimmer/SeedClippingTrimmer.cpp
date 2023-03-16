@@ -31,6 +31,33 @@ SeedClippingTrimmer::SeedClippingTrimmer(double mismatch_, bool use_default_mism
   {
     seqB_str[i] = seqB[i];
   }
+
+  // seqA(0, 2)
+  index_1_1_str = new char[16];
+  index_1_2_str = new char[16];
+  index_1_3_str = new char[16];
+  // seqB(0, 2)
+  index_2_1_str = new char[16];
+  index_2_2_str = new char[16];
+  index_2_3_str = new char[16];
+  // seqA(3, 5)
+  index_3_1_str = new char[16];
+  index_3_2_str = new char[16];
+  index_3_3_str = new char[16];
+  for(int i = 0; i < 16; i++)
+  {
+    index_1_1_str[i] = seqA[0];
+    index_1_2_str[i] = seqA[1];
+    index_1_3_str[i] = seqA[2];
+
+    index_2_1_str[i] = seqB[0];
+    index_2_2_str[i] = seqB[1];
+    index_2_3_str[i] = seqB[2];
+
+    index_3_1_str[i] = seqA[3];
+    index_3_2_str[i] = seqA[4];
+    index_3_3_str[i] = seqA[5];
+  }
 #endif
   
 }
@@ -41,6 +68,18 @@ SeedClippingTrimmer::~SeedClippingTrimmer()
 #if defined __SSE2__  && defined TRIM_USE_VEC
   delete [] seqA_str;
   delete [] seqB_str;
+
+  delete [] index_1_1_str;
+  delete [] index_1_2_str;
+  delete [] index_1_3_str;
+
+  delete [] index_2_1_str;
+  delete [] index_2_2_str;
+  delete [] index_2_3_str;
+
+  delete [] index_3_1_str;
+  delete [] index_3_2_str;
+  delete [] index_3_3_str;
 #endif
 }
 
@@ -78,14 +117,82 @@ void SeedClippingTrimmer::processSingleRecord(neoReference& rec)
   } 
   rec.lseq = i + 1;
   rec.lqual = i + 1;
-
+  rec_seq[rec.lseq] = '\0';
+  
   // find seed
   std::set<int> seed;
   std::string tmp_index1 = seqA.substr(0, 3);
   std::string tmp_index2 = seqA.substr(3, 3);
   const char* adapter_index_1 = tmp_index1.c_str();
   const char* adapter_index_2 = tmp_index2.c_str();
-  rec_seq[rec.lseq] = '\0';
+#if defined __SSE2__ && defined TRIM_USE_VEC 
+  rec_len = rec.lseq;
+  int total = (rec_len - 2 + 13) / 14; // 14 is 16 - 2 if use xmm
+  __m128i vindex1_1 = _mm_loadu_si128((__m128i_u*)(index_1_1_str)); 
+  __m128i vindex1_2 = _mm_loadu_si128((__m128i_u*)(index_1_2_str)); 
+  __m128i vindex1_3 = _mm_loadu_si128((__m128i_u*)(index_1_3_str)); 
+
+  
+  for(int i = 0; i < total; i++)
+  {
+      __m128i vrec = _mm_loadu_si128((__m128i_u*)(rec_seq + i * 14)); // SSE2 // need extra 16 Byte space 
+      __m128i vres1_1  = _mm_cmpeq_epi8(vrec, vindex1_1);
+      vrec = _mm_srli_si128(vrec, 0x1);
+      __m128i vres1_2  = _mm_cmpeq_epi8(vrec, vindex1_2);
+      vrec = _mm_srli_si128(vrec, 0x1);
+      __m128i vres1_3  = _mm_cmpeq_epi8(vrec, vindex1_3);
+      
+      __m128i vres = _mm_and_si128(vres1_1, vres1_2);
+      vres = _mm_and_si128(vres, vres1_3);
+
+      int res = _mm_movemask_epi8(vres);
+      if(__builtin_popcount(res))
+      {
+        for(int p = 0; p < 14; p++)
+        {
+          if((res >> p) & 1)
+          {
+            if(i * 14 + p <= rec_len - 3)
+              seed.emplace(i * 14 + p);
+          }
+        }
+        
+      }
+  }
+
+  total = ((rec_len - 3) - 2 + 13 ) / 14; // 需要保证rec_len >= 3
+  char* tmp_rec_seq = rec_seq + 3;
+  __m128i vindex3_1 = _mm_loadu_si128((__m128i_u*)(index_3_1_str)); 
+  __m128i vindex3_2 = _mm_loadu_si128((__m128i_u*)(index_3_2_str)); 
+  __m128i vindex3_3 = _mm_loadu_si128((__m128i_u*)(index_3_3_str)); 
+  for(int i = 0; i < total; i++)
+  {
+      __m128i vrec = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq + i * 14)); // SSE2
+      __m128i vres3_1  = _mm_cmpeq_epi8(vrec, vindex3_1);
+      vrec = _mm_srli_si128(vrec, 0x1);
+      __m128i vres3_2  = _mm_cmpeq_epi8(vrec, vindex3_2);
+      vrec = _mm_srli_si128(vrec, 0x1);
+      __m128i vres3_3  = _mm_cmpeq_epi8(vrec, vindex3_3);
+      
+      __m128i vres = _mm_and_si128(vres3_1, vres3_2);
+      vres = _mm_and_si128(vres, vres3_3);
+
+      int res = _mm_movemask_epi8(vres);
+      if(__builtin_popcount(res))
+      {
+        for(int p = 0; p < 14; p++)
+        {
+          if((res >> p) & 1)
+          {
+            if(i * 14 + p <= rec_len - 6)
+              seed.emplace(i * 14 + p);
+          }
+        }
+        
+      }
+  }
+  
+#else
   char* indexloc = rec_seq;
   while (true)
   {
@@ -109,6 +216,7 @@ void SeedClippingTrimmer::processSingleRecord(neoReference& rec)
     }
     else break;
   }
+#endif
 
   //debug
   // std::cout << "seed is : \n";
