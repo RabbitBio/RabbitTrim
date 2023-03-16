@@ -1,5 +1,10 @@
 #include "trimmer/SeedClippingTrimmer.h"
 #include <iostream>
+
+// #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+#if defined __SSE2__  && defined TRIM_USE_VEC
+#include <immintrin.h>
+#endif
 using namespace rabbit::trim;
 
 SeedClippingTrimmer::SeedClippingTrimmer(double mismatch_, bool use_default_mismatch_, std::string seqA_, std::string seqB_, int minLen_, int minQual_, int window_, int phred_)
@@ -12,11 +17,31 @@ SeedClippingTrimmer::SeedClippingTrimmer(double mismatch_, bool use_default_mism
   window = window_;
   phred = phred_;
   use_default_mismatch = use_default_mismatch_;
+
+// #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+#if defined __SSE2__  && defined TRIM_USE_VEC
+  std::cout << "using vectorisatino .. in Seed Clipping .. " << std::endl;
+  seqA_str = new char[seqA.size() + 15];
+  seqB_str = new char[seqB.size() + 15];
+  for(int i = 0; i <  seqA.size(); i++)
+  {
+    seqA_str[i] = seqA[i];
+  }
+  for(int i = 0; i <  seqB.size(); i++)
+  {
+    seqB_str[i] = seqB[i];
+  }
+#endif
+  
 }
 
 SeedClippingTrimmer::~SeedClippingTrimmer()
 {
-
+// #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+#if defined __SSE2__  && defined TRIM_USE_VEC
+  delete [] seqA_str;
+  delete [] seqB_str;
+#endif
 }
 
 void SeedClippingTrimmer::processOneRecord(Reference& rec){}
@@ -98,12 +123,37 @@ void SeedClippingTrimmer::processSingleRecord(neoReference& rec)
     int pos = *iter;
     int compLen = rec.lseq - pos; 
     compLen = compLen > seqA.size() ? seqA.size() : compLen;
-    int maxMiss;
-    if(use_default_mismatch) maxMiss = (compLen + 7) >> 3;
-    else maxMiss = std::ceil(compLen * mismatch);
+    int maxMiss = use_default_mismatch ? ((compLen + 7) >> 3) : std::ceil(compLen * mismatch);
     char* start = rec_seq + pos;
     int tmpMiss = 0;
     isFound = true;
+
+// #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+#if defined __SSE2__  && defined TRIM_USE_VEC
+    
+    int nums = (compLen + 15) / 16;
+    int remain = compLen % 16;
+    remain = remain == 0 ? 16 : remain;
+    int mask = ((1 << remain) - 1);
+    for(int i = 0; i < nums - 1; i++)
+    {
+      __m128i vrec = _mm_loadu_si128((__m128i_u*)(start + i * 16)); // SSE2
+      __m128i vclip = _mm_loadu_si128((__m128i_u*)(seqA_str + i * 16));
+      __m128i vres  = _mm_cmpeq_epi8(vrec, vclip);
+      int res = _mm_movemask_epi8(vres); // SSE2
+      int tmp_mis = 16 - __builtin_popcount(res);
+      tmpMiss += tmp_mis;
+    }
+    __m128i vrec = _mm_loadu_si128((__m128i_u*)(start + (nums - 1) * 16));
+    __m128i vclip = _mm_loadu_si128((__m128i_u*)(seqA_str + (nums - 1) * 16));
+    __m128i vres  = _mm_cmpeq_epi8(vrec, vclip);
+    int res = _mm_movemask_epi8(vres);
+    res = res & mask;
+    int tmp_mis = remain - __builtin_popcount(res);
+    tmpMiss += tmp_mis;
+    isFound = tmpMiss > maxMiss ? false : true;
+    
+#else
     for(int i = 0; i < compLen; i++){
       if(start[i] != seqA[i]){
         tmpMiss++;
@@ -114,6 +164,7 @@ void SeedClippingTrimmer::processSingleRecord(neoReference& rec)
         }
       }
     }
+#endif
     if(isFound){
       rec.lorigin = 1;
       if(pos >= minLen) rec.lseq = pos;
@@ -219,12 +270,35 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
     int pos = *iter;
     int compLen = rec_len - pos;
     compLen = compLen > seqA.size() ? seqA.size() : compLen;
-    int maxMiss;
-    if(use_default_mismatch) maxMiss = (compLen + 7) >> 3;
-    else maxMiss = std::ceil(mismatch * compLen);
+    int maxMiss = (use_default_mismatch) ? ((compLen + 7) >> 3) : std::ceil(mismatch * compLen);
     char* rec1_start = rec1_seq + pos;
     char* rec2_start = rec2_seq + pos;
     int tmpMiss = 0;
+#if defined __SSE2__  && defined TRIM_USE_VEC
+    
+    int nums = (compLen + 15) / 16;
+    int remain = compLen % 16;
+    remain = remain == 0 ? 16 : remain;
+    int mask = ((1 << remain) - 1);
+    for(int i = 0; i < nums - 1; i++)
+    {
+      __m128i vrec = _mm_loadu_si128((__m128i_u*)(rec1_start + i * 16)); // SSE2
+      __m128i vclip = _mm_loadu_si128((__m128i_u*)(seqA_str + i * 16));
+      __m128i vres  = _mm_cmpeq_epi8(vrec, vclip);
+      int res = _mm_movemask_epi8(vres); // SSE2
+      int tmp_mis = 16 - __builtin_popcount(res);
+      tmpMiss += tmp_mis;
+    }
+    __m128i vrec = _mm_loadu_si128((__m128i_u*)(rec1_start + (nums - 1) * 16));
+    __m128i vclip = _mm_loadu_si128((__m128i_u*)(seqA_str + (nums - 1) * 16));
+    __m128i vres  = _mm_cmpeq_epi8(vrec, vclip);
+    int res = _mm_movemask_epi8(vres);
+    res = res & mask;
+    int tmp_mis = remain - __builtin_popcount(res);
+    tmpMiss += tmp_mis;
+    isFound = tmpMiss > maxMiss ? false : true;
+    
+#else
     for(int i = 0; i < compLen; i++){
       if(rec1_start[i] != seqA[i]){
         tmpMiss++;
@@ -234,9 +308,37 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
         }
       }
     }
+
+#endif
+
     if(isFound)
     { // rec1 has found
       tmpMiss = 0;
+#if defined __SSE2__  && defined TRIM_USE_VEC
+    
+      int nums = (compLen + 15) / 16;
+      int remain = compLen % 16;
+      remain = remain == 0 ? 16 : remain;
+      int mask = ((1 << remain) - 1);
+      for(int i = 0; i < nums - 1; i++)
+      {
+        __m128i vrec = _mm_loadu_si128((__m128i_u*)(rec2_start + i * 16)); // SSE2
+        __m128i vclip = _mm_loadu_si128((__m128i_u*)(seqB_str + i * 16));
+        __m128i vres  = _mm_cmpeq_epi8(vrec, vclip);
+        int res = _mm_movemask_epi8(vres); // SSE2
+        int tmp_mis = 16 - __builtin_popcount(res);
+        tmpMiss += tmp_mis;
+      }
+      __m128i vrec = _mm_loadu_si128((__m128i_u*)(rec2_start + (nums - 1) * 16));
+      __m128i vclip = _mm_loadu_si128((__m128i_u*)(seqB_str + (nums - 1) * 16));
+      __m128i vres  = _mm_cmpeq_epi8(vrec, vclip);
+      int res = _mm_movemask_epi8(vres);
+      res = res & mask;
+      int tmp_mis = remain - __builtin_popcount(res);
+      tmpMiss += tmp_mis;
+      isFound = tmpMiss > maxMiss ? false : true;
+    
+#else
       for(int i = 0; i < compLen; i++)
       {
         if(rec2_start[i] != seqB[i])
@@ -249,6 +351,8 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
           }
         }
       }
+#endif
+
       if(isFound)
       {
         // rec2 also found

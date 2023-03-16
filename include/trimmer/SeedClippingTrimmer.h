@@ -25,6 +25,11 @@ namespace rabbit
             int minLen;
             std::string seqA;
             std::string seqB;
+// #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+#if defined __SSE2__  && defined TRIM_USE_VEC
+            char* seqA_str;
+            char* seqB_str;
+#endif
 
         public:
             SeedClippingTrimmer(double mismatch_, bool use_default_mismatch_, std::string seqA_, std::string seqB_, int minLen_, int minQual_, int window_, int phred_);
