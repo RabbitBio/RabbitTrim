@@ -1,4 +1,7 @@
 #include "trimmer/IlluminaPrefixPair.h"
+#if defined __SSE2__ && defined __SSSE3__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+#include <immintrin.h>
+#endif
 
 using namespace rabbit::trim;
 
@@ -21,12 +24,48 @@ IlluminaPrefixPair::IlluminaPrefixPair(std::string prefix1_, std::string prefix2
 
   forwardPacks = new uint64[consumerNum_ * (rabbit::trim::MAX_READ_LENGTH + rabbit::trim::MAX_ADAPTER_LENGTH) ];
   reversePacks = new uint64[consumerNum_ * (rabbit::trim::MAX_READ_LENGTH + rabbit::trim::MAX_ADAPTER_LENGTH) ];
-  // likelihoodArr = new float[consumerNum_ *  rabbit::trim::MAX_READ_LENGTH];
+
+#if defined __SSE2__ && defined __SSSE3__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+  logger.errorln("using vectorisation in pe ...");
+  all_N = new char[16];
+  all_4 = new char[16];
+  all_6 = new char[16];
+  phred_arr = new char[16];
+  index_arr = new char[16];
+  for(int i = 0; i < 16; i++)
+  {
+    all_N[i] = 'N';
+    all_4[i] =  4;
+    all_6[i] =  6;
+    phred_arr[i] = phred;
+    index_arr[i] = 15 - i;
+  }
+  divide_arr = new float[8];
+  awards = new float[8];
+  for(int i = 0; i < 8; i++)
+  {
+    divide_arr[i] = -10.0f;
+    awards[i] = LOG10_4;
+  }
+  likelihoodTotal = new float[ rabbit::trim::MAX_READ_LENGTH * consumerNum_];
+  
+#endif
 }
 
 IlluminaPrefixPair::~IlluminaPrefixPair(){
   delete [] forwardPacks;
   delete [] reversePacks;
+#if defined __SSE2__ && defined __SSSE3__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+  delete [] all_N;
+  delete [] phred_arr;
+  delete [] index_arr;
+  delete [] divide_arr;
+  delete [] awards;
+  delete [] likelihoodTotal;
+  delete [] all_4;
+  delete [] all_6;
+  
+#endif
 }
 
 uint64 IlluminaPrefixPair::packCh(char ch, bool reverse){
@@ -256,7 +295,6 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
 
   float likelihood;
   float totalLikelihood = 0;
-  // float* likelihood_arr = likelihoodArr + threadId * rabbit::trim::MAX_READ_LENGTH;
   // int cnt = 0;
   
   int offset1 = skip1;
@@ -281,61 +319,115 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
 
     likelihood = (ch1 == 'N' || ch2 == 'N') ? 0.0f : s;
     totalLikelihood += likelihood;
-    // likelihood_arr[cnt++] = likelihood;
     offset1++;
     offset2--;
   }
   
-  if(prefixLen - skip1 == minCmpLen)
-  { // must go here
+#if defined __SSE2__ && defined __SSSE3__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+  int tmp_overlap = maxCmpLen - minCmpLen;
+  int tmp_pos_1 = skip1 + minCmpLen - prefixLen;
+  int tmp_pos_2 = skip2 + overlap - 1 - minCmpLen - prefixLen - 15;
+  char* tmp_rec_seq_1 = rec1_seq + tmp_pos_1;
+  char* tmp_rec_seq_2 = rec2_seq + tmp_pos_2;
+  char* tmp_rec_qual_1 = rec1_qual + tmp_pos_1;
+  char* tmp_rec_qual_2 = rec2_qual + tmp_pos_2;
+  float* tmp_likelihood = likelihoodTotal + threadId * rabbit::trim::MAX_READ_LENGTH;
+  int nums = (tmp_overlap + 15) / 16;
+  
+  for(int i = 0; i < nums; i++)
+  {
+    __m128i vindex  = _mm_loadu_si128((__m128i_u*)(index_arr));
+    __m128i vqual1  = _mm_loadu_si128((__m128i_u*)(tmp_rec_qual_1 + i * 16));
+    __m128i vqual2  = _mm_loadu_si128((__m128i_u*)(tmp_rec_qual_2 - i * 16));
+
+    vqual2 = _mm_shuffle_epi8(vqual2, vindex); // ssse3
+    __m128i vqual = _mm_min_epu8(vqual1, vqual2); // sse2
+    __m128i vphred  = _mm_loadu_si128((__m128i_u*)phred_arr);
+    __m128i vscore  = _mm_sub_epi8(vqual, vphred);
+    __m128i vscore_sr8 = _mm_srli_si128(vscore, 0x8);
+    __m256i vscore_1 = _mm256_cvtepi8_epi32(vscore);
+    __m256i vscore_2 = _mm256_cvtepi8_epi32(vscore_sr8);
+    __m256 vscore_1_ps = _mm256_cvtepi32_ps(vscore_1);
+    __m256 vscore_2_ps = _mm256_cvtepi32_ps(vscore_2);
+    __m256 vdivide = _mm256_loadu_ps(divide_arr);
+    vscore_1_ps = _mm256_div_ps(vscore_1_ps, vdivide);
+    vscore_2_ps = _mm256_div_ps(vscore_2_ps, vdivide);
+
+    __m128i vrec1_origin  = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq_1 + i * 16));
+    __m128i vrec2_origin  = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq_2 - i * 16));
+
+    __m128i vrec2_reverse = _mm_shuffle_epi8(vrec2_origin, vindex); // ssse3
+    __m128i vall4 = _mm_loadu_si128((__m128i_u*)(all_4));
+    __m128i vall6 = _mm_loadu_si128((__m128i_u*)(all_6));
+    
+    __m128i vrec1 = _mm_and_si128(vrec1_origin,  vall6);
+    __m128i vrec2 = _mm_and_si128(vrec2_reverse, vall6);
+    vrec2 = _mm_xor_si128(vrec2, vall4);
+
+    __m128i vres  = _mm_cmpeq_epi8(vrec1, vrec2);
+    __m128i vres_sr8 = _mm_srli_si128(vres, 0x8);
+    __m256i vlow = _mm256_cvtepi8_epi32(vres);
+    __m256i vhigh = _mm256_cvtepi8_epi32(vres_sr8);
+    __m256 vlow_ps = _mm256_cvtepi32_ps(vlow);
+    __m256 vhigh_ps = _mm256_cvtepi32_ps(vhigh);
+    __m256 vawards = _mm256_loadu_ps(awards);
+    vscore_1_ps = _mm256_blendv_ps(vscore_1_ps, vawards, vlow_ps);
+    vscore_2_ps = _mm256_blendv_ps(vscore_2_ps, vawards, vhigh_ps);
+
+
+    // judge N
+    __m128i vallN = _mm_loadu_si128((__m128i_u*)(all_N));
+    __m128i vres1  = _mm_cmpeq_epi8(vrec1_origin, vallN);
+    __m128i vres1_sr8 = _mm_srli_si128(vres1, 0x8);
+    __m256i vlow1 = _mm256_cvtepi8_epi32(vres1);
+    __m256i vhigh1 = _mm256_cvtepi8_epi32(vres1_sr8);
+    __m256 vlow1_ps = _mm256_cvtepi32_ps(vlow1);
+    __m256 vhigh1_ps = _mm256_cvtepi32_ps(vhigh1);
+    __m256 vscore_0 = _mm256_setzero_ps();
+    vscore_1_ps = _mm256_blendv_ps(vscore_1_ps, vscore_0, vlow1_ps);
+    vscore_2_ps = _mm256_blendv_ps(vscore_2_ps, vscore_0, vhigh1_ps);
+
+    __m128i vres2  = _mm_cmpeq_epi8(vrec2_reverse, vallN);
+    __m128i vres2_sr8 = _mm_srli_si128(vres2, 0x8);
+    __m256i vlow2 = _mm256_cvtepi8_epi32(vres2);
+    __m256i vhigh2 = _mm256_cvtepi8_epi32(vres2_sr8);
+    __m256 vlow2_ps = _mm256_cvtepi32_ps(vlow2);
+    __m256 vhigh2_ps = _mm256_cvtepi32_ps(vhigh2);
+    vscore_1_ps = _mm256_blendv_ps(vscore_1_ps, vscore_0, vlow2_ps);
+    vscore_2_ps = _mm256_blendv_ps(vscore_2_ps, vscore_0, vhigh2_ps);
+
+    _mm256_storeu_ps(tmp_likelihood + i * 16,      vscore_1_ps);
+    _mm256_storeu_ps(tmp_likelihood + i * 16 + 8,  vscore_2_ps);
+  }
+
+  for(int i = 0; i < maxCmpLen - minCmpLen; i++)
+    totalLikelihood += tmp_likelihood[i]; 
+  
+  
+  offset1 += tmp_overlap;
+  offset2 -= tmp_overlap;
+
+#else
+  
+  // if(prefixLen - skip1 == minCmpLen)
+  // { // must go here
     for(int i = 0; i < maxCmpLen - minCmpLen; i++)
     {
       char ch1 = rec1_seq[offset1 - prefixLen];
       char ch2 = rec2_seq[offset2 - prefixLen];
       int qual1 = rec1_qual[offset1 - prefixLen] - phred;
-      int qual2 = rec1_qual[offset2 - prefixLen] - phred;
+      int qual2 = rec2_qual[offset2 - prefixLen] - phred;
       int minQual = qual1 < qual2 ? qual1 : qual2;
 
-      float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
-      likelihood = (ch1 == 'N' || ch2 == 'N') ? 0 : s;
-      totalLikelihood += likelihood;
-      // likelihood_arr[cnt++] = likelihood;
-      offset1++;
-      offset2--;
-    }
-    
-    for(int i = 0; i < overlap - maxCmpLen; i++)
-    {
-      char ch1 = rec1_seq[offset1 - prefixLen];
-      char ch2 = prefix2[offset2];
-      int minQual = rec1_qual[offset1 - prefixLen] - phred;
-      float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
-
-      likelihood = (ch1 == 'N' || ch2 == 'N') ? 0 : s;
-      totalLikelihood += likelihood;
-      // likelihood_arr[cnt++] = likelihood;
-      offset1++;
-      offset2--;
-    }
-
-  }
-  else
-  {
-    logger.errorln("not impossiblbe");
-    // is is possible? No, wmk think
-    for(int i = 0; i < maxCmpLen - minCmpLen; i++)
-    {
-      char ch1 = prefix1[offset1]; 
-      char ch2 = prefix2[offset2];
-      int minQual = 100;
-
-      float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
+      // float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
+      float s = ((ch1) & 6) == (((ch2) & 6) ^ 4) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
       likelihood = (ch1 == 'N' || ch2 == 'N') ? 0 : s;
       totalLikelihood += likelihood;
       offset1++;
       offset2--;
     }
-    
+#endif
+
     for(int i = 0; i < overlap - maxCmpLen; i++)
     {
       char ch1 = rec1_seq[offset1 - prefixLen];
@@ -348,10 +440,37 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
       offset1++;
       offset2--;
     }
-  }
-  // for(int i = 0; i < cnt; i++)
+
+  // }
+  // else
   // {
-  //   totalLikelihood += likelihood_arr[i];
+  //   logger.errorln("impossiblbe");
+  //   // is is possible? No, wmk think
+  //   for(int i = 0; i < maxCmpLen - minCmpLen; i++)
+  //   {
+  //     char ch1 = prefix1[offset1]; 
+  //     char ch2 = prefix2[offset2];
+  //     int minQual = 100;
+
+  //     float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
+  //     likelihood = (ch1 == 'N' || ch2 == 'N') ? 0 : s;
+  //     totalLikelihood += likelihood;
+  //     offset1++;
+  //     offset2--;
+  //   }
+  //   
+  //   for(int i = 0; i < overlap - maxCmpLen; i++)
+  //   {
+  //     char ch1 = rec1_seq[offset1 - prefixLen];
+  //     char ch2 = prefix2[offset2];
+  //     int minQual = rec1_qual[offset1 - prefixLen] - phred;
+  //     float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
+
+  //     likelihood = (ch1 == 'N' || ch2 == 'N') ? 0 : s;
+  //     totalLikelihood += likelihood;
+  //     offset1++;
+  //     offset2--;
+  //   }
   // }
   return totalLikelihood;
 }

@@ -57,6 +57,17 @@ namespace rabbit
                     uint64* forwardPacks;
                     uint64* reversePacks;
                     float* likelihoodArr;
+#if defined __SSE2__ && defined __SSSE3__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+
+                    char* all_N;
+                    char* all_4;
+                    char* all_6;
+                    char* phred_arr;
+                    char* index_arr;
+                    float* divide_arr;
+                    float* awards;
+                    float* likelihoodTotal;
+#endif
                     
         };
     } // namespace trim
