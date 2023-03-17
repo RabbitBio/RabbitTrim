@@ -39,6 +39,9 @@ namespace rabbit
             char* index_3_1_str;
             char* index_3_2_str;
             char* index_3_3_str;
+            
+            uint8_t* seed_table;
+            int* seed_start_pos;
 #endif
 
         public:

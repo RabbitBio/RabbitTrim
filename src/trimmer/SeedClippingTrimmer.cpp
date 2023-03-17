@@ -58,6 +58,20 @@ SeedClippingTrimmer::SeedClippingTrimmer(double mismatch_, bool use_default_mism
     index_3_3_str[i] = seqA[5];
   }
 
+  seed_start_pos = new int[1 << 14 + 1];
+  seed_table = new uint8_t[114688];
+  int cur = 0; 
+  for(int i = 0; i < (1 << 14); i++)
+  {
+    int tmp = i;
+    seed_start_pos[i] = cur;
+    for(uint8_t p = 0; p < 14; p++)
+    {
+      if((tmp >> p) & 1) seed_table[cur++] = p;
+    }
+  }
+  seed_start_pos[(1 << 14)] = cur;
+
 #endif
   
   
@@ -65,7 +79,6 @@ SeedClippingTrimmer::SeedClippingTrimmer(double mismatch_, bool use_default_mism
 
 SeedClippingTrimmer::~SeedClippingTrimmer()
 {
-// #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
 #if defined __SSE2__  && defined TRIM_USE_VEC
   delete [] seqA_str;
   delete [] seqB_str;
@@ -81,6 +94,9 @@ SeedClippingTrimmer::~SeedClippingTrimmer()
   delete [] index_3_1_str;
   delete [] index_3_2_str;
   delete [] index_3_3_str;
+
+  delete [] seed_start_pos;
+  delete [] seed_table;
 #endif
 }
 
@@ -148,21 +164,33 @@ void SeedClippingTrimmer::processSingleRecord(neoReference& rec)
       vres = _mm_and_si128(vres, vres1_3);
 
       int res = _mm_movemask_epi8(vres);
-      if(__builtin_popcount(res))
+      
+      int len = rec_len - (i * 14) >= 16 ? 14 : rec_len - (i * 14) - 2;
+      int res_mask = (1 << len) - 1;
+      res = res & res_mask;
+
+      // search seed table 
+      int start = seed_start_pos[res];
+      int end = seed_start_pos[res+1];
+      for(int v = start; v < end; v++)
       {
-        for(int p = 0; p < 14; p++)
-        {
-          if((res >> p) & 1)
-          {
-            if(i * 14 + p <= rec_len - 3)
-              seed.emplace(i * 14 + p);
-          }
-        }
-        
+        seed.emplace(i *14 + seed_table[v]);
       }
+      
+      // if(__builtin_popcount(res))
+      // {
+      //   for(int p = 0; p < 14; p++)
+      //   {
+      //     if((res >> p) & 1)
+      //     {
+      //       if(i * 14 + p <= rec_len - 3)
+      //         seed.emplace(i * 14 + p);
+      //     }
+      //   }
+      // }
   }
 
-  total = ((rec_len - 3) - 2 + 13 ) / 14; // 需要保证rec_len >= 3
+  total = ((rec_len - 3) - 2 + 13 ) / 14; // rec_len >= 6
   char* tmp_rec_seq = rec_seq + 3;
   __m128i vindex3_1 = _mm_loadu_si128((__m128i_u*)(index_3_1_str)); 
   __m128i vindex3_2 = _mm_loadu_si128((__m128i_u*)(index_3_2_str)); 
@@ -180,18 +208,30 @@ void SeedClippingTrimmer::processSingleRecord(neoReference& rec)
       vres = _mm_and_si128(vres, vres3_3);
 
       int res = _mm_movemask_epi8(vres);
-      if(__builtin_popcount(res))
+
+      int len = (rec_len - 3) - (i * 14) >= 16 ? 14 : (rec_len - 3) - (i * 14) - 2;
+      int res_mask = (1 << len) - 1;
+      res = res & res_mask;
+
+      int start = seed_start_pos[res];
+      int end = seed_start_pos[res+1];
+      for(int v = start; v < end; v++)
       {
-        for(int p = 0; p < 14; p++)
-        {
-          if((res >> p) & 1)
-          {
-            if(i * 14 + p <= rec_len - 6)
-              seed.emplace(i * 14 + p);
-          }
-        }
-        
+        seed.emplace(i *14 + seed_table[v]);
       }
+
+      // if(__builtin_popcount(res))
+      // {
+      //   for(int p = 0; p < 14; p++)
+      //   {
+      //     if((res >> p) & 1)
+      //     {
+      //       if(i * 14 + p <= rec_len - 6)
+      //         seed.emplace(i * 14 + p);
+      //     }
+      //   }
+      //   
+      // }
   }
   
 #else
@@ -368,18 +408,30 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
     vres = _mm_and_si128(vres, vres1_3);
 
     int res = _mm_movemask_epi8(vres);
-    if(__builtin_popcount(res))
-    {
-      for(int p = 0; p < 14; p++)
-      {
-        if((res >> p) & 1)
-        {
-          if(i * 14 + p <= rec_len - 3) // Because only part of the last one was rec_seq , need to ensure the validity of the found seeds
-            seed.emplace(i * 14 + p);
-        }
-      }
 
+    int len = rec_len - (i * 14) >= 16 ? 14 : rec_len - (i * 14) - 2;
+    int res_mask = (1 << len) - 1;
+    res = res & res_mask;
+
+    int start = seed_start_pos[res];
+    int end = seed_start_pos[res+1];
+    for(int v = start; v < end; v++)
+    {
+      seed.emplace(i *14 + seed_table[v]);
     }
+
+    // if(__builtin_popcount(res))
+    // {
+    //   for(int p = 0; p < 14; p++)
+    //   {
+    //     if((res >> p) & 1)
+    //     {
+    //       if(i * 14 + p <= rec_len - 3) // Because only part of the last one was rec_seq , need to ensure the validity of the found seeds
+    //         seed.emplace(i * 14 + p);
+    //     }
+    //   }
+
+    // }
   }
 
   for(int i = 0; i < total; i++)
@@ -398,17 +450,29 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
     vres = _mm_and_si128(vres, vres2_3);
 
     int res = _mm_movemask_epi8(vres);
-    if(__builtin_popcount(res))
+
+    int len = rec_len - (i * 14) >= 16 ? 14 : rec_len - (i * 14) - 2;
+    int res_mask = (1 << len) - 1;
+    res = res & res_mask;
+
+    int start = seed_start_pos[res];
+    int end = seed_start_pos[res+1];
+    for(int v = start; v < end; v++)
     {
-      for(int p = 0; p < 14; p++)
-      {
-        if((res >> p) & 1)
-        {
-          if(i * 14 + p <= rec_len - 3)
-            seed.emplace(i * 14 + p);
-        }
-      }
+      seed.emplace(i *14 + seed_table[v]);
     }
+
+    // if(__builtin_popcount(res))
+    // {
+    //   for(int p = 0; p < 14; p++)
+    //   {
+    //     if((res >> p) & 1)
+    //     {
+    //       if(i * 14 + p <= rec_len - 3)
+    //         seed.emplace(i * 14 + p);
+    //     }
+    //   }
+    // }
   }
 // #if defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC 
 // 
