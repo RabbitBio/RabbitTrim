@@ -18,9 +18,8 @@ SeedClippingTrimmer::SeedClippingTrimmer(double mismatch_, bool use_default_mism
   phred = phred_;
   use_default_mismatch = use_default_mismatch_;
 
-// #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
-#if defined __SSE2__  && defined TRIM_USE_VEC
-  std::cout << "using vectorisatino .. in Seed Clipping .. " << std::endl;
+#if defined __SSE2__ && defined TRIM_USE_VEC
+  std::cout << "using vectorisation .. in Seed Clipping .. " << std::endl;
   seqA_str = new char[seqA.size() + 15];
   seqB_str = new char[seqB.size() + 15];
   for(int i = 0; i <  seqA.size(); i++)
@@ -58,7 +57,9 @@ SeedClippingTrimmer::SeedClippingTrimmer(double mismatch_, bool use_default_mism
     index_3_2_str[i] = seqA[4];
     index_3_3_str[i] = seqA[5];
   }
+
 #endif
+  
   
 }
 
@@ -126,6 +127,7 @@ void SeedClippingTrimmer::processSingleRecord(neoReference& rec)
   const char* adapter_index_1 = tmp_index1.c_str();
   const char* adapter_index_2 = tmp_index2.c_str();
 #if defined __SSE2__ && defined TRIM_USE_VEC 
+  // vectorisation for find seed
   rec_len = rec.lseq;
   int total = (rec_len - 2 + 13) / 14; // 14 is 16 - 2 if use xmm
   __m128i vindex1_1 = _mm_loadu_si128((__m128i_u*)(index_1_1_str)); 
@@ -236,9 +238,8 @@ void SeedClippingTrimmer::processSingleRecord(neoReference& rec)
     int tmpMiss = 0;
     isFound = true;
 
-// #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
 #if defined __SSE2__  && defined TRIM_USE_VEC
-    
+    // vectorisation for comparison
     int nums = (compLen + 15) / 16;
     int remain = compLen % 16;
     remain = remain == 0 ? 16 : remain;
@@ -343,11 +344,137 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
 
   // find seed
   std::set<int> seed;
-  char* indexloc = rec1_seq;
   std::string tmp_index1 = seqA.substr(0, 3);
   std::string tmp_index2 = seqB.substr(0, 3);
   const char* adapter_index_1 = tmp_index1.c_str();
   const char* adapter_index_2 = tmp_index2.c_str();
+#if defined __SSE2__ && defined TRIM_USE_VEC 
+  // find seed vectorisation
+  int total = (rec_len - 2 + 13) / 14; // 14 is 16 - 2 when use xmm
+  
+  for(int i = 0; i < total; i++)
+  {
+    __m128i vindex1_1 = _mm_loadu_si128((__m128i_u*)(index_1_1_str)); 
+    __m128i vindex1_2 = _mm_loadu_si128((__m128i_u*)(index_1_2_str)); 
+    __m128i vindex1_3 = _mm_loadu_si128((__m128i_u*)(index_1_3_str)); 
+    __m128i vrec = _mm_loadu_si128((__m128i_u*)(rec1_seq + i * 14)); // SSE2 // need extra 16 Byte space 
+    __m128i vres1_1  = _mm_cmpeq_epi8(vrec, vindex1_1);
+    vrec = _mm_srli_si128(vrec, 0x1);
+    __m128i vres1_2  = _mm_cmpeq_epi8(vrec, vindex1_2);
+    vrec = _mm_srli_si128(vrec, 0x1);
+    __m128i vres1_3  = _mm_cmpeq_epi8(vrec, vindex1_3);
+
+    __m128i vres = _mm_and_si128(vres1_1, vres1_2);
+    vres = _mm_and_si128(vres, vres1_3);
+
+    int res = _mm_movemask_epi8(vres);
+    if(__builtin_popcount(res))
+    {
+      for(int p = 0; p < 14; p++)
+      {
+        if((res >> p) & 1)
+        {
+          if(i * 14 + p <= rec_len - 3) // Because only part of the last one was rec_seq , need to ensure the validity of the found seeds
+            seed.emplace(i * 14 + p);
+        }
+      }
+
+    }
+  }
+
+  for(int i = 0; i < total; i++)
+  {
+    __m128i vindex2_1 = _mm_loadu_si128((__m128i_u*)(index_2_1_str)); 
+    __m128i vindex2_2 = _mm_loadu_si128((__m128i_u*)(index_2_2_str)); 
+    __m128i vindex2_3 = _mm_loadu_si128((__m128i_u*)(index_2_3_str)); 
+    __m128i vrec = _mm_loadu_si128((__m128i_u*)(rec2_seq + i * 14)); // SSE2
+    __m128i vres2_1  = _mm_cmpeq_epi8(vrec, vindex2_1);
+    vrec = _mm_srli_si128(vrec, 0x1);
+    __m128i vres2_2  = _mm_cmpeq_epi8(vrec, vindex2_2);
+    vrec = _mm_srli_si128(vrec, 0x1);
+    __m128i vres2_3  = _mm_cmpeq_epi8(vrec, vindex2_3);
+
+    __m128i vres = _mm_and_si128(vres2_1, vres2_2);
+    vres = _mm_and_si128(vres, vres2_3);
+
+    int res = _mm_movemask_epi8(vres);
+    if(__builtin_popcount(res))
+    {
+      for(int p = 0; p < 14; p++)
+      {
+        if((res >> p) & 1)
+        {
+          if(i * 14 + p <= rec_len - 3)
+            seed.emplace(i * 14 + p);
+        }
+      }
+    }
+  }
+// #if defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC 
+// 
+//   int total = (rec_len - 2 + 31) / 32;
+//   for(int i = 0; i < total; i++)
+//   {
+//     __m256i vindex1_1 = _mm256_loadu_si256((__m256i_u*)(index_1_1_str));  // need extra 30 Byte data for the last one
+//     __m256i vindex1_2 = _mm256_loadu_si256((__m256i_u*)(index_1_2_str)); 
+//     __m256i vindex1_3 = _mm256_loadu_si256((__m256i_u*)(index_1_3_str)); 
+//     __m256i vrec_1 = _mm256_loadu_si256((__m256i_u*)(rec1_seq + i * 32 + 0)); 
+//     __m256i vrec_2 = _mm256_loadu_si256((__m256i_u*)(rec1_seq + i * 32 + 1)); 
+//     __m256i vrec_3 = _mm256_loadu_si256((__m256i_u*)(rec1_seq + i * 32 + 2)); 
+//     __m256i vres1_1  = _mm256_cmpeq_epi8(vrec_1, vindex1_1);
+//     __m256i vres1_2  = _mm256_cmpeq_epi8(vrec_2, vindex1_2);
+//     __m256i vres1_3  = _mm256_cmpeq_epi8(vrec_3, vindex1_3);
+// 
+//     __m256i vres = _mm256_and_si256(vres1_1, vres1_2);
+//     vres = _mm256_and_si256(vres, vres1_3);
+// 
+//     int res = _mm256_movemask_epi8(vres);
+//     if(__builtin_popcount(res))
+//     {
+//       for(int p = 0; p < 32; p++)
+//       {
+//         if((res >> p) & 1)
+//         {
+//           if(i * 32 + p <= rec_len - 3) // Because only part of the last one was rec_seq , need to ensure the validity of the found seeds
+//             seed.emplace(i * 32 + p);
+//         }
+//       }
+// 
+//     }
+//   }
+// 
+//   for(int i = 0; i < total; i++)
+//   {
+//     __m256i vindex2_1 = _mm256_loadu_si256((__m256i_u*)(index_2_1_str));  // need extra 30 Byte data for the last one
+//     __m256i vindex2_2 = _mm256_loadu_si256((__m256i_u*)(index_2_2_str)); 
+//     __m256i vindex2_3 = _mm256_loadu_si256((__m256i_u*)(index_2_3_str)); 
+//     __m256i vrec_1 = _mm256_loadu_si256((__m256i_u*)(rec2_seq + i * 32 + 0)); 
+//     __m256i vrec_2 = _mm256_loadu_si256((__m256i_u*)(rec2_seq + i * 32 + 1)); 
+//     __m256i vrec_3 = _mm256_loadu_si256((__m256i_u*)(rec2_seq + i * 32 + 2)); 
+//     __m256i vres2_1  = _mm256_cmpeq_epi8(vrec_1, vindex2_1);
+//     __m256i vres2_2  = _mm256_cmpeq_epi8(vrec_2, vindex2_2);
+//     __m256i vres2_3  = _mm256_cmpeq_epi8(vrec_3, vindex2_3);
+// 
+//     __m256i vres = _mm256_and_si256(vres2_1, vres2_2);
+//     vres = _mm256_and_si256(vres, vres2_3);
+// 
+//     int res = _mm256_movemask_epi8(vres);
+//     if(__builtin_popcount(res))
+//     {
+//       for(int p = 0; p < 32; p++)
+//       {
+//         if((res >> p) & 1)
+//         {
+//           if(i * 32 + p <= rec_len - 3) // Because only part of the last one was rec_seq , need to ensure the validity of the found seeds
+//             seed.emplace(i * 32 + p);
+//         }
+//       }
+// 
+//     }
+//   }
+
+#else
+  char* indexloc = rec1_seq;
   while(true)
   {
     indexloc = std::strstr(indexloc, adapter_index_1);
@@ -369,6 +496,7 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
     }
     else break;
   }
+#endif
 
 
   // iterator seed
@@ -383,7 +511,7 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
     char* rec2_start = rec2_seq + pos;
     int tmpMiss = 0;
 #if defined __SSE2__  && defined TRIM_USE_VEC
-    
+
     int nums = (compLen + 15) / 16;
     int remain = compLen % 16;
     remain = remain == 0 ? 16 : remain;
@@ -423,7 +551,7 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
     { // rec1 has found
       tmpMiss = 0;
 #if defined __SSE2__  && defined TRIM_USE_VEC
-    
+
       int nums = (compLen + 15) / 16;
       int remain = compLen % 16;
       remain = remain == 0 ? 16 : remain;
@@ -445,7 +573,7 @@ void SeedClippingTrimmer::processPairRecord(neoReference& rec1, neoReference& re
       int tmp_mis = remain - __builtin_popcount(res);
       tmpMiss += tmp_mis;
       isFound = tmpMiss > maxMiss ? false : true;
-    
+
 #else
       for(int i = 0; i < compLen; i++)
       {
