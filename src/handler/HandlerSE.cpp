@@ -11,6 +11,7 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
 
   rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(256,MEM_PER_CHUNK);
   rabbit::trim::FastqDataChunkQueue queue1(256,1);
+  rabbit::trim::FastqDataChunkQueue phredQueue(256,1);
   rabbit::trim::WriterBufferDataQueue wbQueue (256, consumer_num);
   rabbit::trim::WriterBufferDataQueue logQueue(256, consumer_num);
   
@@ -22,17 +23,107 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   // Trim Stats for each thread
   std::vector<rabbit::log::TrimStat> statsArr(consumer_num);
 
-  // SE does not need PairingValidator
+  
+  std::atomic_bool isDeterminedPhred(true);
+  if(rp.phred == 0) isDeterminedPhred = false;
+
+  // producer
+  std::thread producer(rabbit::trim::producer_se_task, std::ref(rp), std::ref(logger), fastqPool, std::ref(queue1), std::ref(phredQueue), std::ref(isDeterminedPhred));
+
+  // determine phred
+  if(rp.phred == 0)
+  {
+    int cur_pre_read_count = 0;
+    int* qualHistogram = new int[256];
+    
+    rabbit::int64 tmp_chunk_id;
+    rabbit::fq::FastqDataChunk* fqDataChunk;
+
+    while(cur_pre_read_count < rabbit::trim::PREREAD_COUNT && phredQueue.Pop(tmp_chunk_id,fqDataChunk))
+    {
+      uint64_t pos = 0;
+      const char* base = (char*)fqDataChunk -> data.Pointer();
+      const uint64_t chunk_size = fqDataChunk -> size + 1;
+      
+      while(pos <= chunk_size)
+      {
+        int cnt = 0;
+        while(pos <= chunk_size && cnt < 3)
+        {
+          if(base[pos] == '\n') cnt++;
+          pos++;
+        }
+
+        while(pos <= chunk_size)
+        {
+          if(base[pos] == '\n')
+          {
+            cur_pre_read_count++;
+            if(cur_pre_read_count == rabbit::trim::PREREAD_COUNT)
+            {
+              pos = chunk_size + 1;
+              break;
+            }
+
+            pos++;
+            break;
+          }
+          qualHistogram[base[pos] - 0]++;
+          pos++;
+        }
+      }
+      fastqPool -> Release(fqDataChunk);
+    }
+    isDeterminedPhred = true;
+    //  release remain data chunk in phredQueue
+    if(!phredQueue.IsEmpty())
+    {
+      phredQueue.SetCompleted();
+      while(phredQueue.Pop(tmp_chunk_id,fqDataChunk))
+      {
+        fastqPool -> Release(fqDataChunk);
+      }
+    }
+
+    int phred33Total = 0;
+    int phred64Total = 0;
+    
+    for(int i = 33; i <= 58; i++)
+    {
+      phred33Total += qualHistogram[i];
+    }
+    for(int i = 80; i <= 104; i++)
+    {
+      phred64Total += qualHistogram[i];
+    }
+
+    if(phred33Total == 0 && phred64Total > 0)
+    {
+      rp.phred = 64;
+      logger.infoln("Quality encoding detected as phred64" );
+    }
+    else
+    {
+      if(phred33Total > 0 && phred64Total == 0)
+      {
+        rp.phred = 33;
+        logger.infoln("Quality encoding detected as phred33" );
+      }
+      else
+      {
+        logger.errorln("Unable to detect quality encoding");
+        exit(1);
+      }
+    }
+    
+  }
 
   // trimmers
   TrimmerFactory *trimmerFactory = new TrimmerFactory(logger);
   std::vector<Trimmer*> trimmers;
   trimmerFactory -> makeTrimmers(rp, rp.steps, trimmers);
-
-
-  // producer
-  std::thread producer(rabbit::trim::producer_se_task, std::ref(rp), std::ref(logger), fastqPool, std::ref(queue1));
-
+  
+  
 
   // consumer
   std::atomic_ullong atomic_next_id;
@@ -112,7 +203,7 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
 }
 
 // producer
-int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, FastqDataChunkQueue& dq)
+int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, FastqDataChunkQueue& dq, FastqDataChunkQueue& phredQueue, std::atomic_bool& isDeterminedPhred)
 {
   bool isReverse = (bool)rp.reverseFiles.size();
   int totalFileCount = isReverse ? rp.reverseFiles.size() : rp.forwardFiles.size();
@@ -137,12 +228,24 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
       rabbit::fq::FastqChunk *fqChunk = new rabbit::fq::FastqChunk; 
       fqChunk->chunk = fqFileReader->readNextChunk();
       if(fqChunk->chunk == NULL) break;
+      
+      if(!isDeterminedPhred)
+      {
+        rabbit::fq::FastqDataChunk* tmp;
+        fastqPool -> Acquire(tmp);
+        tmp -> size = fqChunk -> chunk -> size;
+        std::memcpy(tmp->data.Pointer(), fqChunk -> chunk -> data.Pointer(), tmp -> size + 1);
+        rabbit::int64 tmp_chunk_id = n_chunks;
+        phredQueue.Push(tmp_chunk_id, tmp);
+      }
+
       dq.Push(n_chunks, fqChunk->chunk);
       n_chunks++;
     }
     delete fqFileReader;
   }
   dq.SetCompleted();
+  phredQueue.SetCompleted();
   return 0;
 }
 

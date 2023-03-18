@@ -255,6 +255,7 @@ int chunkFormat(FastqChunk *fqChunk, std::vector<neoReference> &data) {
     neoGetLine(chunk, pos_, ref.lqual);
     seq_count++;
     // print_read(ref);
+    // 是不是应该检查有没有'\r'
     data.emplace_back(ref);
   }
 
