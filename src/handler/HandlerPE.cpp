@@ -7,6 +7,7 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   int consumer_num = rp.threads;
   rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(128, MEM_PER_CHUNK);
   rabbit::trim::FastqDataPairChunkQueue queue1(128,1);
+  rabbit::trim::FastqDataPairChunkQueue phredQueue(128,1); 
 
   // output data pool
   rabbit::trim::WriterBufferDataPool* wbDataPool = new rabbit::trim::WriterBufferDataPool(128 << 2, MEM_PER_CHUNK); 
@@ -22,10 +23,6 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   if(rp.validatePairing)
     pairingValidator = new rabbit::PairingValidator(logger);
 
-  // trimmers
-  TrimmerFactory *trimmerFactory = new TrimmerFactory(logger);
-  std::vector<Trimmer*> trimmers;
-  trimmerFactory -> makeTrimmers(rp, rp.steps, trimmers);
 
   // trim log
   std::thread* trimlog_thread = NULL;
@@ -53,9 +50,144 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
     }
   }
 
+  std::atomic_bool isDeterminedPhred(true);
+  if(rp.phred == 0) isDeterminedPhred = false;
   // producer
-  std::thread producer(rabbit::trim::producer_pe_task, std::ref(rp), std::ref(logger), fastqPool, std::ref(queue1));
+  std::thread producer(rabbit::trim::producer_pe_task, std::ref(rp), std::ref(logger), fastqPool, std::ref(queue1), std::ref(phredQueue), std::ref(isDeterminedPhred));
 
+  // determine the phred
+  if(rp.phred == 0)
+  {
+    int cur_pre_read_count_1 = 0;
+    int cur_pre_read_count_2 = 0;
+    int* qualHistogram = new int[256];
+
+    rabbit::int64 tmp_chunk_id;
+    rabbit::fq::FastqDataPairChunk* fqDataPairChunk = new rabbit::fq::FastqDataPairChunk;
+    
+    while(cur_pre_read_count_1 < rabbit::trim::PREREAD_COUNT && phredQueue.Pop(tmp_chunk_id, fqDataPairChunk))
+    {
+      uint64_t pos = 0;
+      const char* base_1 = (char*)(fqDataPairChunk->left_part->data.Pointer());
+      const uint64_t chunk_size = fqDataPairChunk -> left_part-> size + 1;
+
+      while(pos <= chunk_size)
+      {
+        int cnt = 0;
+        while(pos <= chunk_size && cnt < 3)
+        {
+          if(base_1[pos] == '\n') cnt++;
+          pos++;
+        }
+        
+        while(pos <= chunk_size)
+        {
+          if(base_1[pos] == '\n')
+          {
+            cur_pre_read_count_1++;
+            if(cur_pre_read_count_1 == rabbit::trim::PREREAD_COUNT)
+            {
+              pos = chunk_size + 1;
+              break;
+            }
+            pos++;
+            break;
+          }
+          qualHistogram[base_1[pos] - 0]++;
+          pos++;
+        }
+        
+      }
+      fastqPool -> Release(fqDataPairChunk -> left_part);
+
+      // read 2
+      
+      pos = 0;
+      const char* base_2 = (char*)(fqDataPairChunk->right_part->data.Pointer());
+      const uint64_t chunk_size_2 = fqDataPairChunk -> right_part -> size + 1;
+
+      while(pos <= chunk_size_2)
+      {
+        int cnt = 0;
+        while(pos <= chunk_size_2 && cnt < 3)
+        {
+          if(base_2[pos] == '\n')
+          {
+            cnt++;
+          }
+          pos++;
+        }
+
+        while(pos <= chunk_size_2)
+        {
+          if(base_2[pos] == '\n')
+          {
+            cur_pre_read_count_2++;
+            if(cur_pre_read_count_2 == rabbit::trim::PREREAD_COUNT)
+            {
+              pos = chunk_size_2 + 1;
+              break;
+            }
+            pos++;
+            break;
+          }
+          qualHistogram[base_2[pos] - 0]++;
+          pos++;
+        }
+      }
+      fastqPool -> Release(fqDataPairChunk -> right_part);
+      
+    }
+    
+    isDeterminedPhred = true;
+    if(!phredQueue.IsEmpty())
+    {
+      phredQueue.SetCompleted();
+      while(phredQueue.Pop(tmp_chunk_id, fqDataPairChunk))
+      {
+        fastqPool -> Release(fqDataPairChunk -> left_part);
+        fastqPool -> Release(fqDataPairChunk -> right_part);
+      }
+    }
+    
+    int phred33Total = 0;
+    int phred64Total = 0;
+
+    for(int i = 33; i <= 58; i++)
+    {
+      phred33Total += qualHistogram[i];
+    }
+    for(int i = 80; i <= 104; i++)
+    {
+      phred64Total += qualHistogram[i];
+    }
+
+    if(phred33Total == 0 && phred64Total > 0)
+    {
+      rp.phred = 64;
+      logger.infoln("Quality encoding detected as phred64" );
+    }
+    else
+    {
+      if(phred33Total > 0 && phred64Total == 0)
+      {
+        rp.phred = 33;
+        logger.infoln("Quality encoding detected as phred33" );
+      }
+      else
+      {
+        logger.errorln("Unable to detect quality encoding");
+        exit(1);
+      }
+    }
+    
+  }
+
+
+  // trimmers
+  TrimmerFactory *trimmerFactory = new TrimmerFactory(logger);
+  std::vector<Trimmer*> trimmers;
+  trimmerFactory -> makeTrimmers(rp, rp.steps, trimmers);
   // consumer
   std::atomic_ullong  atomic_next_id;
   std::atomic_init(&atomic_next_id, 0ULL);
@@ -246,9 +378,9 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
 }
 
 // producer
-int rabbit::trim::producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, FastqDataPairChunkQueue& dq){
+int rabbit::trim::producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, FastqDataPairChunkQueue& dq, FastqDataPairChunkQueue& phredQueue, std::atomic_bool& isDeterminedPhred){
   if(rp.forwardFiles.size() != rp.reverseFiles.size()) {
-    logger.errorln("\033[1;31mError: Read1 and Read2 do not contain equal sized files!\033[0m\n");
+    logger.errorln("Read1 and Read2 do not contain equal sized files!");
     exit(0);
   }
   int totalFileCount = rp.forwardFiles.size();
@@ -282,12 +414,27 @@ int rabbit::trim::producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
       rabbit::fq::FastqPairChunk *fqPairChunk = new rabbit::fq::FastqPairChunk; 
       fqPairChunk->chunk = fqFileReader->readNextPairChunk();
       if(fqPairChunk->chunk == NULL) break;
+      
+      if(!isDeterminedPhred)
+      {
+        rabbit::fq::FastqDataPairChunk* tmp = new rabbit::fq::FastqDataPairChunk;
+        fastqPool -> Acquire(tmp -> left_part);
+        fastqPool -> Acquire(tmp -> right_part);
+        
+        tmp -> left_part -> size = fqPairChunk -> chunk -> left_part -> size;
+        tmp -> right_part -> size = fqPairChunk -> chunk -> right_part -> size;
+        std::memcpy(tmp ->left_part->data.Pointer(), fqPairChunk->chunk->left_part->data.Pointer(), tmp->left_part->size + 1);
+        rabbit::int64 tmp_chunk_id = n_chunks;
+        phredQueue.Push(tmp_chunk_id, tmp);
+      }
+      
       dq.Push(n_chunks,fqPairChunk->chunk);
       n_chunks++;
     }
     delete fqFileReader;
   }
   dq.SetCompleted();
+  phredQueue.SetCompleted();
   std::cout<<"Input files have "<<n_chunks<<" chunks "<<std::endl;
   return 0;
 }
