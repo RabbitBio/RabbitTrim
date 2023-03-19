@@ -243,7 +243,7 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(Reference& rec1, 
     int qual2 = offset2 < prefixLen ? 100 : (rec2.quality.at(cur_headPos2 + offset2 - prefixLen) - phred);
     int minQual = qual1 < qual2 ? qual1 : qual2;
 
-    float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
+    float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10; // XOR 2表示取碱基的互补碱基
 
     likelihood = (ch1 == 'N' || ch2 == 'N') ? 0 : s;
     totalLikelihood += likelihood;
@@ -276,7 +276,7 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
     int qual2 = offset2 < prefixLen ? 100 : (rec2_qual[offset2 - prefixLen] - phred);
     int minQual = qual1 < qual2 ? qual1 : qual2;
 
-    float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
+    float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10; // XOR 2表示取碱基的互补碱基
 
     likelihood = (ch1 == 'N' || ch2 == 'N') ? 0 : s;
     totalLikelihood += likelihood;
@@ -315,7 +315,7 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
     char ch2 = rec2_seq[offset2 - prefixLen];
     int minQual = rec2_qual[offset2 - prefixLen] - phred;
 
-    float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
+    float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10; // XOR 2表示取碱基的互补碱基
 
     likelihood = (ch1 == 'N' || ch2 == 'N') ? 0.0f : s;
     totalLikelihood += likelihood;
@@ -352,6 +352,9 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
     __m256 vdivide = _mm256_loadu_ps(divide_arr);
     vscore_1_ps = _mm256_div_ps(vscore_1_ps, vdivide);
     vscore_2_ps = _mm256_div_ps(vscore_2_ps, vdivide);
+
+    vscore_1_ps = _mm256_ceil_ps(vscore_1_ps);
+    vscore_2_ps = _mm256_ceil_ps(vscore_2_ps);
 
     __m128i vrec1_origin  = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq_1 + i * 16));
     __m128i vrec2_origin  = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq_2 - i * 16));
@@ -419,8 +422,8 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
       int qual2 = rec2_qual[offset2 - prefixLen] - phred;
       int minQual = qual1 < qual2 ? qual1 : qual2;
 
-      // float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
-      float s = ((ch1) & 6) == (((ch2) & 6) ^ 4) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
+      // float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10; // XOR 2表示取碱基的互补碱基
+      float s = ((ch1) & 6) == (((ch2) & 6) ^ 4) ? LOG10_4 :  -minQual / 10; // XOR 2表示取碱基的互补碱基
       likelihood = (ch1 == 'N' || ch2 == 'N') ? 0 : s;
       totalLikelihood += likelihood;
       offset1++;
@@ -433,7 +436,7 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
       char ch1 = rec1_seq[offset1 - prefixLen];
       char ch2 = prefix2[offset2];
       int minQual = rec1_qual[offset1 - prefixLen] - phred;
-      float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
+      float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10; // XOR 2表示取碱基的互补碱基
 
       likelihood = (ch1 == 'N' || ch2 == 'N') ? 0 : s;
       totalLikelihood += likelihood;
@@ -452,7 +455,7 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
   //     char ch2 = prefix2[offset2];
   //     int minQual = 100;
 
-  //     float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
+  //     float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10; // XOR 2表示取碱基的互补碱基
   //     likelihood = (ch1 == 'N' || ch2 == 'N') ? 0 : s;
   //     totalLikelihood += likelihood;
   //     offset1++;
@@ -464,7 +467,7 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
   //     char ch1 = rec1_seq[offset1 - prefixLen];
   //     char ch2 = prefix2[offset2];
   //     int minQual = rec1_qual[offset1 - prefixLen] - phred;
-  //     float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10.0f; // XOR 2表示取碱基的互补碱基
+  //     float s = ((ch1 >> 1) & 3) == (((ch2 >> 1) & 3) ^ 2) ? LOG10_4 :  -minQual / 10; // XOR 2表示取碱基的互补碱基
 
   //     likelihood = (ch1 == 'N' || ch2 == 'N') ? 0 : s;
   //     totalLikelihood += likelihood;

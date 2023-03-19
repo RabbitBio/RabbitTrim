@@ -537,7 +537,7 @@ float IlluminaShortClippingSeq::calculateDifferenceQuality(Reference& rec, int o
     char ch2 = seq.at(clipPos);
 
     int qual_val = rec.quality.at(cur_headPos + recPos) - phred;
-        float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10.0f;
+        float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10;
         likelihood[i] = ((ch1 == 'N' || ch2 == 'N') ? 0 : s);
         recPos++;
         clipPos++;
@@ -563,7 +563,7 @@ float IlluminaShortClippingSeq::calculateDifferenceQuality(neoReference& rec, in
         char ch2 = seq.at(clipPos);
         
         int qual_val = rec_qual[recPos] - phred;
-        float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10.0f;
+        float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10;
         likelihood[i] = ((ch1 == 'N' || ch2 == 'N') ? 0 : s);
         recPos++;
         clipPos++;
@@ -626,8 +626,8 @@ float IlluminaShortClippingSeq::calculateDifferenceQuality(neoReference& rec, in
     char ch1 = rec_seq[recPos + i];
     char ch2 = seq.at(clipPos + i);
 
-    float penalty =  -1 * ((bool)((1 << ((ch1 >> 1) & 7)) & 15)) * (rec_qual[recPos + i] - phred) / 10.0f;
-    // float penalty =  -1 * ((bool)(ch1 & 0x11)) * (rec_qual[recPos + i] - phred) / 10.0f;
+    int penalty =  -1 * ((bool)((1 << ((ch1 >> 1) & 7)) & 15)) * (rec_qual[recPos + i] - phred) / 10;
+    // int penalty =  -1 * ((bool)(ch1 & 0x11)) * (rec_qual[recPos + i] - phred) / 10;
 
     float s = (((ch1 >> 1) & 3) == ((ch2 >> 1) & 3)) * LOG10_4 +  (((ch1 >> 1) & 3) != ((ch2 >> 1) & 3)) * penalty;
     likelihood[i] = s;

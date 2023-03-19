@@ -348,7 +348,7 @@ float IlluminaLongClippingSeq::calculateDifferenceQuality(Reference& rec, int ov
 		char ch2 = seq.at(clipPos);
 
 		int qual_val = rec.quality.at(cur_headPos + recPos) - phred;
-		float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10.0f;
+		float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10;
 		likelihood[i] = ((ch1 == 'N' || ch2 == 'N') ? 0 : s);
 		recPos++;
 		clipPos++;
@@ -373,7 +373,7 @@ float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int
         char ch2 = seq[clipPos];
         
         int qual_val = rec_qual[recPos] - phred;
-        float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10.0f;
+        float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10;
         likelihood[i] = ((ch1 == 'N' || ch2 == 'N') ? 0 : s);
         recPos++;
 				clipPos++;
@@ -413,6 +413,9 @@ float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int
     vscore_1_ps = _mm256_div_ps(vscore_1_ps, vdivide);
     vscore_2_ps = _mm256_div_ps(vscore_2_ps, vdivide);
 
+    vscore_1_ps = _mm256_ceil_ps(vscore_1_ps);
+    vscore_2_ps = _mm256_ceil_ps(vscore_2_ps);
+
     __m128i vrec  = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq + i * 16));
 
     __m128i vallN = _mm_loadu_si128((__m128i_u*)(all_N));
@@ -443,7 +446,7 @@ float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int
     char ch1 = rec_seq[recPos + i];
     char ch2 = seq[clipPos + i];
 
-    float penalty = -1 * ((bool)((1 << ((ch1 >> 1) & 7)) & 15)) * (rec_qual[recPos + i] - phred) / 10.0f;
+    float penalty = -1 * ((bool)((1 << ((ch1 >> 1) & 7)) & 15)) * (rec_qual[recPos + i] - phred) / 10;
     float s = (((ch1 >> 1) & 3) == ((ch2 >> 1) & 3)) * LOG10_4 + (((ch1 >> 1) & 3) != ((ch2 >> 1) & 3)) * penalty;
     likelihood[i] = s;
   }

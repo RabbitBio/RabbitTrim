@@ -387,7 +387,7 @@ float IlluminaMediumClippingSeq::calculateDifferenceQuality(Reference& rec, int 
         char ch2 = seq.at(clipPos);
         
         int qual_val = rec.quality.at(cur_headPos + recPos) - phred;
-        float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10.0f;
+        float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10;
         likelihood[i] = ((ch1 == 'N' || ch2 == 'N') ? 0 : s);
         recPos++;
         clipPos++;
@@ -413,7 +413,7 @@ float IlluminaMediumClippingSeq::calculateDifferenceQuality(neoReference& rec, i
         char ch2 = seq.at(clipPos);
         
         int qual_val = rec_qual[recPos] - phred;
-        float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10.0f;
+        float s = ((ch1 >> 1) & 3) == ((ch2 >> 1) & 3) ? LOG10_4 : -qual_val / 10;
         likelihood[i] = ((ch1 == 'N' || ch2 == 'N') ? 0 : s);
         recPos++;
         clipPos++;
@@ -445,7 +445,7 @@ float IlluminaMediumClippingSeq::calculateDifferenceQuality(neoReference& rec, i
   // {
   //   char ch1 = rec_seq[recPos + i];
   //   tmp_rec_seq[i] = ch1;
-  //   float tmp_penalty =  -1 * ((bool)((1 << ((ch1 >> 1) & 7)) & 15)) * (rec_qual[recPos + i] - phred) / 10.0f;
+  //   float tmp_penalty =  -1 * ((bool)((1 << ((ch1 >> 1) & 7)) & 15)) * (rec_qual[recPos + i] - phred) / 10;
   //   penalty[i] = tmp_penalty;
   // }
   
@@ -585,6 +585,11 @@ float IlluminaMediumClippingSeq::calculateDifferenceQuality(neoReference& rec, i
   __m256 vscore2_2_ps = _mm256_cvtepi32_ps(vscore2_2);
   vscore2_2_ps = _mm256_div_ps(vscore2_2_ps, vdivide);
 
+  vscore1_1_ps = _mm256_ceil_ps(vscore1_1_ps);
+  vscore1_2_ps = _mm256_ceil_ps(vscore1_2_ps);
+  vscore2_1_ps = _mm256_ceil_ps(vscore2_1_ps);
+  vscore2_2_ps = _mm256_ceil_ps(vscore2_2_ps);
+
   __m256 vscore_0 = _mm256_setzero_ps();
   __m128i vrec1  = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq));
   __m128i vrec2  = _mm_loadu_si128((__m128i_u*)(tmp_rec_seq + 16));
@@ -638,7 +643,7 @@ float IlluminaMediumClippingSeq::calculateDifferenceQuality(neoReference& rec, i
     char ch1 = rec_seq[recPos + i];
     char ch2 = seq[clipPos + i];
 
-    float penalty =  -1 * ((bool)((1 << ((ch1 >> 1) & 7)) & 15)) * (rec_qual[recPos + i] - phred) / 10.0f;
+    float penalty =  -1 * ((bool)((1 << ((ch1 >> 1) & 7)) & 15)) * (rec_qual[recPos + i] - phred) / 10;
 
     float s = (((ch1 >> 1) & 3) == ((ch2 >> 1) & 3)) * LOG10_4 + (((ch1 >> 1) & 3) != ((ch2 >> 1) & 3)) * penalty;
     likelihood[i] = s;
