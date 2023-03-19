@@ -91,7 +91,7 @@ Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, rabbit::trim::RabbitTr
         int parLength = std::stoi(trimmerArgs, nullptr);
         std::string strictness_str = trimmerArgs.substr(pos+1);
         float strictness = std::stof(strictness_str, nullptr);
-        return new MaximumInformationTrimmer(parLength, strictness, phred);
+        return new MaximumInformationTrimmer(parLength, strictness, phred, rp.threads);
     }
     if(trimmerName.compare("MINLEN") == 0) {
         int minLen = std::stoi(trimmerArgs, nullptr) ;
