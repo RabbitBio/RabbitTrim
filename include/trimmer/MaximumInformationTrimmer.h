@@ -15,7 +15,7 @@ namespace rabbit
                 const int LONGEST_READ = 1000;
                 const int MAXQUAL = 60;
 
-                MaximumInformationTrimmer(int parLength_, float strictness_);
+                MaximumInformationTrimmer(int parLength_, float strictness_, int phred_);
                 ~MaximumInformationTrimmer() = default;
 
                 void processOneRecord(Reference& rec);

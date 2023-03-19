@@ -20,10 +20,11 @@ int64* MaximumInformationTrimmer::normalize(double* arr, int arrLength, double r
     return out;
 }
 
-MaximumInformationTrimmer::MaximumInformationTrimmer(int parLength_, float strictness_){
+MaximumInformationTrimmer::MaximumInformationTrimmer(int parLength_, float strictness_, int phred_){
     parLength = parLength_;
     strictness = strictness_;
-    
+    phred = phred_;
+
     // Calculate the score for each length in advance
     lengthScoreTmp = new double[LONGEST_READ];
     for(int i = 0; i < LONGEST_READ; i++){
@@ -33,7 +34,6 @@ MaximumInformationTrimmer::MaximumInformationTrimmer(int parLength_, float stric
         
         // coverage factor
         double coverage = std::log(i+1) * (1 - strictness);
-
         lengthScoreTmp[i] = unique + coverage;
         
     }
@@ -47,9 +47,20 @@ MaximumInformationTrimmer::MaximumInformationTrimmer(int parLength_, float stric
     }
     
     double normRatio = std::max(calcNormalization(lengthScoreTmp, LONGEST_READ, LONGEST_READ * 2), calcNormalization(qualProbTmp, MAXQUAL+1, LONGEST_READ * 2));
-
+    
     lengthScore = normalize(lengthScoreTmp, LONGEST_READ, normRatio);
     qualProb = normalize(qualProbTmp, 1 + MAXQUAL, normRatio);
+
+    // std::cout << "lengthScore : " << std::endl;
+    // for(int i = 0; i < LONGEST_READ; i++)
+    // {
+    //   std::cout << lengthScore[i] << std::endl;
+    // }
+    // std::cout << "qualProb : " << std::endl;
+    // for(int i = 0; i < 1 + MAXQUAL; i++)
+    // {
+    //   std::cout << qualProb[i] << std::endl;
+    // }
     
 }
 void MaximumInformationTrimmer::processOneRecord(Reference& rec){
@@ -124,6 +135,7 @@ void MaximumInformationTrimmer::processOneRecord(neoReference& rec){
     }
     // maxScore == 0 ? // TODO 
     rec.lseq = maxScorePosition + 1;
+    if(maxScorePosition < 1 || maxScore == 0) rec.lseq = 0;
     rec.lqual = rec.lseq;
     
 }
