@@ -5,17 +5,17 @@ using namespace rabbit::trim;
 
 int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &logger) {
   int consumer_num = rp.threads;
-  rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(128, MEM_PER_CHUNK);
+  rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(256, MEM_PER_CHUNK);
   rabbit::trim::FastqDataPairChunkQueue queue1(128,1);
   rabbit::trim::FastqDataPairChunkQueue phredQueue(128,1); 
 
   // output data pool
-  rabbit::trim::WriterBufferDataPool* wbDataPool = new rabbit::trim::WriterBufferDataPool(128 << 2, MEM_PER_CHUNK); 
-  rabbit::trim::WriterBufferDataQueue wbQueue1(128, consumer_num);
-  rabbit::trim::WriterBufferDataQueue wbQueue2(128, consumer_num);
-  rabbit::trim::WriterBufferDataQueue wbQueue3(128, consumer_num);
-  rabbit::trim::WriterBufferDataQueue wbQueue4(128, consumer_num);
-  rabbit::trim::WriterBufferDataQueue logQueue(128, consumer_num);
+  rabbit::trim::WriterBufferDataPool* wbDataPool = new rabbit::trim::WriterBufferDataPool(256 << 2, MEM_PER_CHUNK); 
+  rabbit::trim::WriterBufferDataQueue wbQueue1(256, consumer_num);
+  rabbit::trim::WriterBufferDataQueue wbQueue2(256, consumer_num);
+  rabbit::trim::WriterBufferDataQueue wbQueue3(256, consumer_num);
+  rabbit::trim::WriterBufferDataQueue wbQueue4(256, consumer_num);
+  rabbit::trim::WriterBufferDataQueue logQueue(256, consumer_num);
 
   std::vector<rabbit::log::TrimStat> statsArr(consumer_num);
   // PairingValidator
