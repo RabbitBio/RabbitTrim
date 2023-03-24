@@ -15,6 +15,16 @@ last modified by Zekun Yin 2020/5/18
 #include "Reference.h"
 #include "FastxStream.h"
 
+#if defined __AVX512BW__ && defined __AVX512F__ && defined __POPCNT__
+#include <immintrin.h>
+#elif defined __AVX__ && defined __AVX2__ && defined __POPCNT__
+#include <immintrin.h>
+#else
+#endif
+
+
+
+
 namespace rabbit {
 
     namespace fa {
@@ -306,113 +316,147 @@ namespace rabbit {
 
     namespace fq {
 
-        int64 count_line(uchar *contenx, int64 read_bytes) {
-            int64 count_n = 0;
-            for (int i = 0; i < read_bytes; ++i) {
-                // printf("%c",contenx[i]);
-                if (contenx[i] == '\n') count_n++;
-            }
-            return count_n;
+      int64 count_line(uchar *contenx, int64 read_bytes) {
+        int64 count_n = 0;
+#if defined __AVX512BW__ && defined __AVX512F__ && defined __POPCNT__
+        __m512i enter_con = _mm512_set1_epi8('\n');
+        for (int i = 0; i < read_bytes; i += 64) {
+          uint64_t tag = (1ll << std::min(64, int(read_bytes) - i)) - 1;
+          __m512i item = _mm512_maskz_loadu_epi8(tag, contenx + i);
+          __mmask64 mask = _mm512_cmp_epi8_mask(item, enter_con, _MM_CMPINT_EQ);
+          count_n += _mm_popcnt_u64(mask);
+        }
+#elif defined __AVX__ && defined __AVX2__ && defined __POPCNT__
+        int i = 0;
+        __m256i enter_con = _mm256_set1_epi8('\n');
+
+        for (; i + 32 <= read_bytes; i += 32) {
+          __m256i item = _mm256_loadu_si256((__m256i const *)(contenx + i));
+          __m256i res = _mm256_cmpeq_epi8(item, enter_con);
+          unsigned mask = _mm256_movemask_epi8(res);
+          count_n += _mm_popcnt_u32(mask);
+        }
+        for (; i < read_bytes; ++i) {
+          if (contenx[i] == '\n') count_n++;
+        }
+#else
+
+        for (int i = 0; i < read_bytes; ++i) {
+          if (contenx[i] == '\n') count_n++;
+        }
+#endif
+
+        return count_n;
+      }
+
+      // int64 count_line(uchar *contenx, int64 read_bytes) {
+      //   int64 count_n = 0;
+      //   for (int i = 0; i < read_bytes; ++i) {
+      //     // printf("%c",contenx[i]);
+      //     if (contenx[i] == '\n') count_n++;
+      //   }
+      //   return count_n;
+      // }
+
+
+
+      void FastqFileReader::readChunk() {
+        FastqDataChunk *part = NULL;
+
+        recordsPool.Acquire(part);
+        printf("fastqio: ready to into while\n");
+
+        // while (!errorHandler.IsError() && fileReader.ReadNextChunk(part))
+        while (ReadNextChunk_(part)) {
+          ASSERT(part->size > 0);
+
+          //printf("numParts is %d\n", numParts);
+          numParts++;
+
+          recordsPool.Release(part);
+          recordsPool.Acquire(part);
         }
 
+        ASSERT(part->size == 0);
+        recordsPool.Release(part);  // the last empty part
 
-        void FastqFileReader::readChunk() {
-            FastqDataChunk *part = NULL;
+        // recordsQueue.SetCompleted();
+      }
 
-            recordsPool.Acquire(part);
-            printf("fastqio: ready to into while\n");
-
-            // while (!errorHandler.IsError() && fileReader.ReadNextChunk(part))
-            while (ReadNextChunk_(part)) {
-                ASSERT(part->size > 0);
-
-                //printf("numParts is %d\n", numParts);
-                numParts++;
-
-                recordsPool.Release(part);
-                recordsPool.Acquire(part);
-            }
-
-            ASSERT(part->size == 0);
-            recordsPool.Release(part);  // the last empty part
-
-            // recordsQueue.SetCompleted();
+      /**
+        @brief Read the next chunk
+        @return FastqChunk pointer if next chunk data has data, else return NULL
+       */
+      FastqDataChunk *FastqFileReader::readNextChunk() {
+        FastqDataChunk *part = NULL;
+        recordsPool.Acquire(part);
+        if (ReadNextChunk_(part)) {
+          return part;
+        } else {
+          recordsPool.Release(part);
+          return NULL;
         }
+      }
 
-        /**
-          @brief Read the next chunk
-          @return FastqChunk pointer if next chunk data has data, else return NULL
-          */
-        FastqDataChunk *FastqFileReader::readNextChunk() {
-            FastqDataChunk *part = NULL;
-            recordsPool.Acquire(part);
-            if (ReadNextChunk_(part)) {
-                return part;
-            } else {
-                recordsPool.Release(part);
-                return NULL;
-            }
-        }
+      /**
+        @brief Read the next paired chunk in single thread
+        @return FastqDataPairChunk pointer if next chunk data has data, else return NULL
+       */
+      FastqDataPairChunk *FastqFileReader::readNextPairChunk1() {
+        bool eof1 = false;
+        bool eof2 = false;
+        FastqDataPairChunk *pair = new FastqDataPairChunk;
 
-        /**
-          @brief Read the next paired chunk in single thread
-          @return FastqDataPairChunk pointer if next chunk data has data, else return NULL
-          */
-        FastqDataPairChunk *FastqFileReader::readNextPairChunk1() {
-          bool eof1 = false;
-          bool eof2 = false;
-          FastqDataPairChunk *pair = new FastqDataPairChunk;
+        FastqDataChunk *leftPart = NULL;
+        recordsPool.Acquire(leftPart);
 
-          FastqDataChunk *leftPart = NULL;
-          recordsPool.Acquire(leftPart);
+        FastqDataChunk *rightPart = NULL;
+        recordsPool.Acquire(rightPart);
 
-          FastqDataChunk *rightPart = NULL;
-          recordsPool.Acquire(rightPart);
+        int64 left_line_count = 0;
+        int64 right_line_count = 0;
+        int64 chunkEnd = 0;
+        int64 chunkEnd_right = 0;
 
-          int64 left_line_count = 0;
-          int64 right_line_count = 0;
-          int64 chunkEnd = 0;
-          int64 chunkEnd_right = 0;
-
-          //---------read left chunk------------
-          if (eof) {
-            leftPart->size = 0;
-            rightPart->size = 0;
-            // return false;
-            recordsPool.Release(leftPart);
-            recordsPool.Release(rightPart);
-            return NULL;
-          }
-
-          // flush the data from previous incomplete chunk
-          uchar *data = leftPart->data.Pointer();
-          uint64 cbufSize = leftPart->data.Size();
+        //---------read left chunk------------
+        if (eof) {
           leftPart->size = 0;
-          int64 toRead;
-          toRead = cbufSize - bufferSize;
-          if (bufferSize > 0) {
-            std::copy(swapBuffer.Pointer(), swapBuffer.Pointer() + bufferSize, data);
-            leftPart->size = bufferSize;
-            bufferSize = 0;
-          }
-          int64 r;
-          r = mFqReader->Read(data + leftPart->size, toRead);
-          if (r > 0) {
-            if (r == toRead) {
-              chunkEnd = cbufSize - GetNxtBuffSize;
-              chunkEnd = GetNextRecordPos_(data, chunkEnd, cbufSize);
-            } else {
-              // chunkEnd = r;
-              leftPart->size += r - 1;
-              if (usesCrlf) leftPart->size -= 1;
-              eof1 = true;
-              chunkEnd = leftPart->size + 1;
-              cbufSize = leftPart->size + 1;
-            }
+          rightPart->size = 0;
+          // return false;
+          recordsPool.Release(leftPart);
+          recordsPool.Release(rightPart);
+          return NULL;
+        }
+
+        // flush the data from previous incomplete chunk
+        uchar *data = leftPart->data.Pointer();
+        uint64 cbufSize = leftPart->data.Size();
+        leftPart->size = 0;
+        int64 toRead;
+        toRead = cbufSize - bufferSize;
+        if (bufferSize > 0) {
+          std::copy(swapBuffer.Pointer(), swapBuffer.Pointer() + bufferSize, data);
+          leftPart->size = bufferSize;
+          bufferSize = 0;
+        }
+        int64 r;
+        r = mFqReader->Read(data + leftPart->size, toRead);
+        if (r > 0) {
+          if (r == toRead) {
+            chunkEnd = cbufSize - GetNxtBuffSize;
+            chunkEnd = GetNextRecordPos_(data, chunkEnd, cbufSize);
           } else {
+            // chunkEnd = r;
+            leftPart->size += r - 1;
+            if (usesCrlf) leftPart->size -= 1;
             eof1 = true;
             chunkEnd = leftPart->size + 1;
             cbufSize = leftPart->size + 1;
+          }
+        } else {
+          eof1 = true;
+          chunkEnd = leftPart->size + 1;
+          cbufSize = leftPart->size + 1;
             if (leftPart->size == 0) {
               return NULL;
             }

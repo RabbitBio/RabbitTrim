@@ -383,7 +383,6 @@ float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int
 }
 
 float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int overlap, int recOffset, int threadId){
-  std::cout << "recOffset = " << recOffset << std::endl;
   // getQualityAsInteger
   int len = rec.lseq;
   char* rec_seq = (char*)(rec.base + rec.pseq);
@@ -450,7 +449,6 @@ float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int
     float penalty = -1 * ((bool)((1 << ((ch1 >> 1) & 7)) & 15)) * (rec_qual[recPos + i] - phred) / 10.0f;
     float s = (((ch1 >> 1) & 3) == ((ch2 >> 1) & 3)) * LOG10_4 + (((ch1 >> 1) & 3) != ((ch2 >> 1) & 3)) * penalty;
     likelihood[i] = s;
-    std::cout << "likelihood[" << i <<"] = " << s << std::endl;
   }
 #endif
   float l = calculateMaximumRange(likelihood, overlap);

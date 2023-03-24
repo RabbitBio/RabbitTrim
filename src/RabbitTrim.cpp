@@ -28,7 +28,7 @@ int main( int argc, char **argv) {
   // std::string mode;
   bool isPE = false; 
   bool isSE = false; 
-  int threads = get_nprocs_conf();
+  int threads = 1;
   int phred= 0;
   std::vector<std::string> forwardFiles;
   std::vector<std::string> reverseFiles;
@@ -128,7 +128,9 @@ int main( int argc, char **argv) {
   CLI11_PARSE(app, argc, argv);
 
   rabbit::trim::RabbitTrimParam rp;
-  rp.threads = threads;
+  if(threads > 63) threads = 63;
+  if(threads > get_nprocs_conf()) threads = get_nprocs_conf();
+  rp.threads = threads; 
   rp.phred = phred;
   rp.forwardFiles = forwardFiles;
   rp.reverseFiles = reverseFiles;

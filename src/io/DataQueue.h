@@ -11,6 +11,7 @@
 #define H_DATAQUEUE
 
 #include <queue>
+#include <atomic>
 
 #include "Globals.h"
 
@@ -40,7 +41,7 @@ class TDataQueue {
   const uint32 maxPartNum;
   uint64 completedThreadMask;
   uint32 partNum;
-  uint64 currentThreadMask;
+  std::atomic<unsigned long long> currentThreadMask;
   part_queue parts;
 
   th::mutex mutex;
@@ -78,9 +79,14 @@ class TDataQueue {
   bool IsCompleted() { return parts.empty() && currentThreadMask == completedThreadMask; }
 	
   void SetCompleted() {
-    th::lock_guard<th::mutex> lock(mutex);
+    // th::lock_guard<th::mutex> lock(mutex);
 
-    ASSERT(currentThreadMask != completedThreadMask);
+    // ASSERT(currentThreadMask != completedThreadMask);
+    if(currentThreadMask == completedThreadMask)
+    {
+      queueEmptyCondition.notify_all();
+      return;
+    }
     currentThreadMask = (currentThreadMask << 1) | 1;
 
     queueEmptyCondition.notify_all();
