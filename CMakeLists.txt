@@ -8,10 +8,11 @@ set(EXECUTABLE_OUTPUT_PATH .)
 set(CMAKE_CXX_COMPILER "/usr/bin/g++")
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(COMMON_FLAGS "-O3 -march=native -fopt-info-vec -g -msse2 -mavx -mavx2")
+# set(COMMON_FLAGS "-O3 -march=native -fopt-info-vec -g -msse2 -mavx -mavx2")
+set(COMMON_FLAGS "-O3 -march=native")
 
 option(USE_OMP "Specify whether to use openMP" OFF)
-option(TRIM_USE_VEC "Specify whether to use vectorization" OFF)
+option(TRIM_USE_VEC "Specify whether to use vectorization" ON)
 
 # cmake build type
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")

@@ -424,6 +424,7 @@ int rabbit::trim::producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
         tmp -> left_part -> size = fqPairChunk -> chunk -> left_part -> size;
         tmp -> right_part -> size = fqPairChunk -> chunk -> right_part -> size;
         std::memcpy(tmp ->left_part->data.Pointer(), fqPairChunk->chunk->left_part->data.Pointer(), tmp->left_part->size + 1);
+        std::memcpy(tmp ->right_part->data.Pointer(), fqPairChunk->chunk->right_part->data.Pointer(), tmp->right_part->size + 1);
         rabbit::int64 tmp_chunk_id = n_chunks;
         phredQueue.Push(tmp_chunk_id, tmp);
       }

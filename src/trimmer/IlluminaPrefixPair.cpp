@@ -301,8 +301,10 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
   int offset2 = skip2 + overlap - 1;
   int minCmpLen, maxCmpLen;
   // if(prefixLen - skip1 < skip2 + overlap - prefixLen){ //  must go here
-    minCmpLen = std::max(prefixLen - skip1, 0);
-    maxCmpLen = std::min(skip2 + overlap - prefixLen, overlap);
+    // minCmpLen = std::max(prefixLen - skip1, 0);
+    // maxCmpLen = std::min(skip2 + overlap - prefixLen, overlap);
+  minCmpLen = prefixLen - skip1 > 0 ? prefixLen - skip1 : 0;
+  maxCmpLen = skip2 - prefixLen < 0 ? skip2 + overlap - prefixLen : overlap;
   // }
   // else{
   //   maxCmpLen = prefixLen - skip1;
@@ -324,6 +326,7 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
   }
   
 #if defined __SSE2__ && defined __SSSE3__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+  // 16B extra space required for front and rear each
   int tmp_overlap = maxCmpLen - minCmpLen;
   int tmp_pos_1 = skip1 + minCmpLen - prefixLen;
   int tmp_pos_2 = skip2 + overlap - 1 - minCmpLen - prefixLen - 15;

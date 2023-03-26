@@ -436,6 +436,7 @@ float IlluminaMediumClippingSeq::calculateDifferenceQuality(neoReference& rec, i
 
 
 #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+  // 32B extra space required for rear
   char* tmp_rec_qual = rec_qual + recPos;
   char* tmp_rec_seq = rec_seq + recPos;
   char* tmp_seq_str = seq_str + clipPos;

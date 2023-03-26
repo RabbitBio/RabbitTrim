@@ -33,14 +33,18 @@ class Buffer {
 #if (USE_64BIT_MEMORY)
     uint64 size64 = size_ / 8;
     if (size64 * 8 < size_) size64 += 1;
-    buffer = new uint64[size64];
+    buffer_real = new uint64[size64];
+    buffer = buffer_real + 4; // add for RabbitTrim
 #else
-    buffer = new byte[size_];
+    buffer_real = new byte[size_];
+    buffer = buffer_real + 32; // add for RabbitTrim
 #endif
-    size = size_;
+    // size = size_;
+    size = size_ - 64; // add for RabbitTrim
   }
 
-  ~Buffer() { delete buffer; }
+  // ~Buffer() { delete buffer; }
+  ~Buffer() { delete buffer_real; } // add for RabbitTrim
 
   uint64 Size() const { return size; }
 
@@ -94,8 +98,10 @@ class Buffer {
 
 #if (USE_64BIT_MEMORY)
   uint64 *buffer;
+  uint64 *buffer_real; // add for RabbitTrim
 #else
   byte *buffer;
+  byte *buffer_real; // add for RabbitTrim
 #endif
   uint64 size;
 };
@@ -114,7 +120,8 @@ struct DataChunk {
 	/// list to matain all sequence chunk in one part
   DataChunk *next = NULL;  //[haoz:]added for all seqchunk in one part
 
-  DataChunk(const uint64 bufferSize_ = DefaultBufferSize) : data(bufferSize_), size(0) {}
+  // DataChunk(const uint64 bufferSize_ = DefaultBufferSize) : data(bufferSize_), size(0) {}
+  DataChunk(const uint64 bufferSize_ = DefaultBufferSize) : data(bufferSize_ + 64), size(0) {} // add for RabbitTrim
 
   void Reset() {
     size = 0;

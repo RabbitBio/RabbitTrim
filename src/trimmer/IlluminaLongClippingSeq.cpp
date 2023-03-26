@@ -393,6 +393,7 @@ float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int
   int clipPos = recOffset < 0 ? -recOffset : 0;
   float* likelihood = likelihoodTotal + rabbit::trim::MAX_READ_LENGTH * threadId;
 #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
+  // 16B extra space required for rear
   char* tmp_rec_qual = rec_qual + recPos;
   char* tmp_rec_seq = rec_seq + recPos;
   char* tmp_seq_str = seq_str + clipPos;
