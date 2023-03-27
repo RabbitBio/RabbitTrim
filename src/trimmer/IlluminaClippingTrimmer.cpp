@@ -235,19 +235,11 @@ void IlluminaClippingTrimmer::processSingleRecord(neoReference& rec, bool isReve
 
 void IlluminaClippingTrimmer::processSingleRecord(neoReference& rec, int threadId, bool isReverse){
     int toKeepLength = rec.lseq; 
-    if(!isReverse){
-        for(auto& iter : forwardSeqs){
-            int toKeep = iter -> readsSeqCompare(rec, threadId);
-            toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
-        }
+    for(auto& iter : forwardSeqs){
+      int toKeep = iter -> readsSeqCompare(rec, threadId);
+      toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
     }
-    else{
-        for(auto& iter : reverseSeqs){
-            int toKeep = iter -> readsSeqCompare(rec, threadId);
-            toKeepLength = toKeep < toKeepLength ? toKeep : toKeepLength;
-        }
-    }
-    
+
     // common
     for(auto& iter : commonSeqs){
         int toKeep = iter -> readsSeqCompare(rec, threadId);

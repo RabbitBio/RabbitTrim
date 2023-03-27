@@ -205,9 +205,8 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
 // producer
 int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, FastqDataChunkQueue& dq, FastqDataChunkQueue& phredQueue, std::atomic_bool& isDeterminedPhred)
 {
-  bool isReverse = (bool)rp.reverseFiles.size();
-  int totalFileCount = isReverse ? rp.reverseFiles.size() : rp.forwardFiles.size();
-  std::vector<std::string> inputFiles = isReverse ? rp.reverseFiles : rp.forwardFiles;
+  int totalFileCount = rp.forwardFiles.size();
+  std::vector<std::string> inputFiles = rp.forwardFiles;
   rabbit::int64 n_chunks = 0;
   for(int fileCnt = 0; fileCnt < totalFileCount; fileCnt++){
     rabbit::fq::FastqFileReader * fqFileReader;
@@ -252,7 +251,6 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
   // comusmer task
 void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue, WriterBufferDataQueue& logQueue, rabbit::log::TrimStat& rstats, const std::vector<rabbit::trim::Trimmer*>& trimmers, int threadId, std::atomic_ullong& atomic_next_id)
 {
-    bool isReverse = rp.reverseFiles.size();
     bool isLog = rp.trimLog.size();
     rabbit::int64 chunk_id;
     rabbit::fq::FastqChunk* fqChunk = new rabbit::fq::FastqChunk;
@@ -264,7 +262,7 @@ void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
       rstats.readsInput += loaded;
 
       for(auto trimmer : trimmers){
-        trimmer -> processRecords(data, threadId, false, isReverse);
+        trimmer -> processRecords(data, threadId, false, false);
       }
 
       // copy data to WriterBuffer 

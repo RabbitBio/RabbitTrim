@@ -65,7 +65,7 @@ int main( int argc, char **argv) {
 
   // trimm_option_m->required()->check(CLI::IsMember({"PE", "SE"}));
   trimm_flag_pe->excludes(trimm_flag_se)->needs(trimm_option_f)->needs(trimm_option_r);
-  trimm_flag_se->excludes(trimm_flag_pe);
+  trimm_flag_se->excludes(trimm_flag_pe)->excludes(trimm_option_r)-> needs(trimm_option_f);
   trimm_option_t->check(CLI::PositiveNumber);
   trimm_option_p->check(CLI::IsMember(std::set<int> {0, 33, 64}));
   trimm_option_f->check(CLI::ExistingPath);
@@ -108,7 +108,7 @@ int main( int argc, char **argv) {
   auto kt_option_pigz_th = ktrim->add_option("-g,--pigzThreadsNum", pigzThreadsNum, "specify the max thread number of pigz");
 
   kt_flag_pe->excludes(kt_flag_se)->needs(kt_option_f)->needs(kt_option_r);
-  kt_flag_se->excludes(kt_flag_pe);
+  kt_flag_se->excludes(kt_flag_pe)-> excludes(kt_option_r)->needs(kt_option_f);
   kt_option_f->check(CLI::ExistingPath);
   kt_option_r->check(CLI::ExistingPath);
   kt_option_o->required();
@@ -163,6 +163,13 @@ int main( int argc, char **argv) {
     logger.infoln("run the subcommand : trimmomatic");
   }
   logger.infoln("using thread nums : " + std::to_string(threads));
+
+  logger.infoln("RabbitTrim PE : started with arguments: ");
+  for(int i = 1; i < argc; i++)
+  {
+    std::cout << argv[i] << " "; 
+  }
+  std::cout << std::endl;
 
   if(isPE){
     rabbit::trim::process_pe(rp, logger);
