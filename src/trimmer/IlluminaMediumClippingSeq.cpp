@@ -31,8 +31,6 @@ IlluminaMediumClippingSeq::IlluminaMediumClippingSeq(rabbit::Logger& logger_, in
     likelihoodTotal = new float[consumerNum_ * 32];
 
 #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
-    logger_.errorln("Using vectorized in Medium Clipping ...");
-    
     seq_str = new char[seqLen + 31];
     for(int i = 0; i < seqLen; i++)
     {
@@ -363,16 +361,34 @@ uint64 IlluminaMediumClippingSeq::calcSingleMask(int length){
     return mask;
 }
 
+// float IlluminaMediumClippingSeq::calculateMaximumRange(float* vals, int valsLen){
+//     // 找到vals子区间元素和的最大值
+//     float sum = 0;
+//     float max = vals[0];
+//     for(int i = 0; i < valsLen; i++ ){
+//         if(sum < 0) sum = vals[i];
+//         else sum += vals[i];
+//         if(sum > max) max = sum;
+//     }
+//     return max;
+// }
 float IlluminaMediumClippingSeq::calculateMaximumRange(float* vals, int valsLen){
-    // 找到vals子区间元素和的最大值
-    float sum = 0;
-    float max = vals[0];
-    for(int i = 0; i < valsLen; i++ ){
-        if(sum < 0) sum = vals[i];
-        else sum += vals[i];
-        if(sum > max) max = sum;
+  float res = 0;
+  float tmp = 0;
+  for(int i = 0; i < valsLen; i++)
+  {
+    if(vals[i] >= 0)
+    {
+      tmp += vals[i];
+      res = res < tmp ? tmp : res;
     }
-    return max;
+    else
+    {
+      tmp = 0;
+    }
+
+  }
+  return res;
 }
 
 float IlluminaMediumClippingSeq::calculateDifferenceQuality(Reference& rec, int overlap, int recOffset){

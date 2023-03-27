@@ -26,7 +26,6 @@ IlluminaPrefixPair::IlluminaPrefixPair(std::string prefix1_, std::string prefix2
   reversePacks = new uint64[consumerNum_ * (rabbit::trim::MAX_READ_LENGTH + rabbit::trim::MAX_ADAPTER_LENGTH) ];
 
 #if defined __SSE2__ && defined __SSSE3__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
-  logger.errorln("using vectorisation in pe ...");
   all_N = new char[16];
   all_4 = new char[16];
   all_6 = new char[16];

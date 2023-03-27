@@ -19,7 +19,6 @@ SeedClippingTrimmer::SeedClippingTrimmer(double mismatch_, bool use_default_mism
   use_default_mismatch = use_default_mismatch_;
 
 #if defined __SSE2__ && defined TRIM_USE_VEC
-  std::cout << "using vectorisation .. in Seed Clipping .. " << std::endl;
   seqA_str = new char[seqA.size() + 15];
   seqB_str = new char[seqB.size() + 15];
   for(int i = 0; i <  seqA.size(); i++)

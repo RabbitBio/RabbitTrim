@@ -76,9 +76,9 @@ void TrimStat::printSE(std::string filename){
     fout.precision(2);
     fout << "Input Reads: " << readsInput << '\n'
          << "Surviving Reads: " << readsSurvivingForward << '\n'
-         << "Surviving Read Percent: "  << survivingPercent << "%" << '\n'
+         << "Surviving Read Percent: "  << survivingPercent << '\n'
          << "Dropped Reads: " << dropped << '\n'
-         << "Dropped Read Percent: "  << droppedPercent << "%" << '\n';
+         << "Dropped Read Percent: "  << droppedPercent << '\n';
     fout.close();
     
 }
@@ -93,20 +93,20 @@ void TrimStat::printPE(std::string filename){
     
     std::ofstream fout(out_file.c_str());
     if(fout.fail()) { 
-          logger.errorln("\033[1;34mError: cannot open file " + filename +"!\033[0m\n");
+          logger.errorln("Can not open file : " + filename);
           return;
     }
     fout.setf(std::ios::fixed, std::ios::floatfield);
     fout.precision(2);
     fout << "Input Read Pairs: " << readsInput << '\n'
          << "Both Surviving Reads: " << readsSurvivingBoth << '\n'
-         << "Both Surviving Read Percent: " << survivingBothPercent << "%" << '\n'
+         << "Both Surviving Read Percent: " << survivingBothPercent << '\n'
          << "Forward Only Surviving Reads: " << readsSurvivingForward << '\n'
-         << "Forward Only Surviving Read Percent: " << survivingForwardPercent << "%" << '\n'
+         << "Forward Only Surviving Read Percent: " << survivingForwardPercent << '\n'
          << "Reverse Only Surviving Reads: " << readsSurvivingReverse << '\n'
-         << "Reverse Only Surviving Read Percent: " << survivingReversePercent << "%" << '\n'
+         << "Reverse Only Surviving Read Percent: " << survivingReversePercent << '\n'
          << "Dropped Reads: " << dropped << '\n'
-         << "Dropped Read Percent: "  << droppedPercent << "%" << '\n';
+         << "Dropped Read Percent: "  << droppedPercent << '\n';
     fout.close();
 }
 

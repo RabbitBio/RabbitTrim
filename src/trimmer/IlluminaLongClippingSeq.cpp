@@ -33,7 +33,6 @@ IlluminaLongClippingSeq::IlluminaLongClippingSeq(rabbit::Logger& logger_, int ph
     recPacks = new uint64[(rabbit::trim::MAX_READ_LENGTH + 15) * consumerNum_];
     likelihoodTotal = new float[(rabbit::trim::MAX_READ_LENGTH) * consumerNum_];
 #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
-    logger_.errorln("Using vectorized in Long Clipping ...");
     
     seq_str = new char[seqLen + 31];
     for(int i = 0; i < seqLen; i++)
@@ -461,14 +460,33 @@ float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int
 }
 
 
+// float IlluminaLongClippingSeq::calculateMaximumRange(float* vals, int valsLen){
+//   // 找到vals子区间元素和的最大值
+//   float sum = 0;
+//   float max = vals[0];
+//   for(int i = 0; i < valsLen; i++ ){
+//     if(sum < 0) sum = vals[i];
+//     else sum += vals[i];
+//     if(sum > max) max = sum;
+//   }
+//   return max;
+// }
+
 float IlluminaLongClippingSeq::calculateMaximumRange(float* vals, int valsLen){
-  // 找到vals子区间元素和的最大值
-  float sum = 0;
-  float max = vals[0];
-  for(int i = 0; i < valsLen; i++ ){
-    if(sum < 0) sum = vals[i];
-    else sum += vals[i];
-    if(sum > max) max = sum;
+  float res = 0;
+  float tmp = 0;
+  for(int i = 0; i < valsLen; i++)
+  {
+    if(vals[i] >= 0)
+    {
+      tmp += vals[i];
+      res = res < tmp ? tmp : res;
+    }
+    else
+    {
+      tmp = 0;
+    }
+
   }
-  return max;
+  return res;
 }

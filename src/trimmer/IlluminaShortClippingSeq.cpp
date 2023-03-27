@@ -15,44 +15,35 @@ inline uint64 IlluminaShortClippingSeq::calcSingleMask(int length){
     return mask;
 }
 
-float IlluminaShortClippingSeq::calculateMaximumRange(float* vals, int valsLen){
-    // 找到vals子区间元素和的最大值
-    float sum = 0;
-    float max = vals[0];
-    for(int i = 0; i < valsLen; i++ ){
-        if(sum < 0) sum = vals[i];
-        else sum += vals[i];
-        if(sum > max) max = sum;
-    }
-    return max;
-}
-// TODO
-// inline float calculateMaximumRange(float* vals, int valsLen){
-//     float total = 0;
-//     std::vector<float> merges;
-//     for(int i = 0; i < valsLen; i++){
-//         int val = vals[i];
-//         if((total > 0 && val < 0) || (total < 0 && val > 0)){
-//             merges.emplace_back(total);
-//             total = val;
-//         }
-//         else{
-//             total += val;
-//         }
+// float IlluminaShortClippingSeq::calculateMaximumRange(float* vals, int valsLen){
+//     // 找到vals子区间元素和的最大值
+//     float sum = 0;
+//     float max = vals[0];
+//     for(int i = 0; i < valsLen; i++ ){
+//         if(sum < 0) sum = vals[i];
+//         else sum += vals[i];
+//         if(sum > max) max = sum;
 //     }
-//     merges.emplace_back(total);
-//     
-//     bool scanAgain = true;
-//     while(!merges.empty() && scanAgain){
-//         scanAgain = false;
-//         auto mergeIter = merges.begin();
-//         for(mergeIter; mergeIter != merges.end(); mergeIter++){
-//             float val = *mergeIter;  
-//             
-//         }
-//     }
+//     return max;
 // }
+float IlluminaShortClippingSeq::calculateMaximumRange(float* vals, int valsLen){
+  float res = 0;
+  float tmp = 0;
+  for(int i = 0; i < valsLen; i++)
+  {
+    if(vals[i] >= 0)
+    {
+      tmp += vals[i];
+      res = res < tmp ? tmp : res;
+    }
+    else
+    {
+      tmp = 0;
+    }
 
+  }
+  return res;
+}
 
 IlluminaShortClippingSeq::IlluminaShortClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_, int consumerNum_ ): logger(logger_){
     phred = phred_; 
