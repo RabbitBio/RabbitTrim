@@ -305,12 +305,16 @@ int IlluminaShortClippingSeq::readsSeqCompare(neoReference& rec, int threadId){
             // if(compLength > minSequenceOverlap){
               // float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset);
               float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset, threadId);
-              if(seqLikelihood >= minSequenceLikelihood) return offset;
+              if(seqLikelihood >= minSequenceLikelihood){
+                return offset;
+                delete [] cnt;
+              }
             // }
           }
         }
     }
     // return std::INT_MAX;
+    delete [] cnt;
     return 1 << 30;
 }
 

@@ -247,7 +247,10 @@ int IlluminaMediumClippingSeq::readsSeqCompare(neoReference& rec, int threadId){
           // if(compLength > minSequenceOverlap)
           // {
             float seqLikelihood = calculateDifferenceQuality(rec, compLength, offset, threadId);
-            if(seqLikelihood >= minSequenceLikelihood) return offset;
+            if(seqLikelihood >= minSequenceLikelihood){
+              delete [] cnt;
+              return offset;
+            }
           // }
         }
       }
