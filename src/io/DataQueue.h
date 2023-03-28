@@ -79,7 +79,7 @@ class TDataQueue {
   bool IsCompleted() { return parts.empty() && currentThreadMask == completedThreadMask; }
 	
   void SetCompleted() {
-    // th::lock_guard<th::mutex> lock(mutex);
+    th::lock_guard<th::mutex> lock(mutex);
 
     // ASSERT(currentThreadMask != completedThreadMask);
     if(currentThreadMask == completedThreadMask)
