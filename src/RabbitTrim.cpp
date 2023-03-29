@@ -164,7 +164,7 @@ int main( int argc, char **argv) {
   }
   logger.infoln("using thread nums : " + std::to_string(threads));
 
-  logger.infoln("RabbitTrim PE : started with arguments: ");
+  logger.infoln("RabbitTrim: started with arguments: ");
   for(int i = 1; i < argc; i++)
   {
     std::cout << argv[i] << " "; 

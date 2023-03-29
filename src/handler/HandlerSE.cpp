@@ -112,6 +112,7 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
       else
       {
         logger.errorln("Unable to detect quality encoding");
+        logger.errorln("You can try to use -p or --phred to specify phred");
         exit(1);
       }
     }
