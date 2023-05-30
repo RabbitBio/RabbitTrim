@@ -44,7 +44,7 @@ Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, rabbit::trim::RabbitTr
             }
         }
         
-        return new IlluminaClippingTrimmer(logger, phred, fastaAdapterFile, seedMaxMiss, minPalindromeLikelihood, minSequenceLikelihood, minPrefix, palindromeKeepBoth, rp.threads);
+        return new IlluminaClippingTrimmer(logger, phred, fastaAdapterFile, seedMaxMiss, minPalindromeLikelihood, minSequenceLikelihood, minPrefix, palindromeKeepBoth, rp.workerThreadNum);
     }
     if(trimmerName.compare("LEADING") == 0) {
         int qual = std::stoi(trimmerArgs, nullptr);
@@ -91,7 +91,7 @@ Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, rabbit::trim::RabbitTr
         int parLength = std::stoi(trimmerArgs, nullptr);
         std::string strictness_str = trimmerArgs.substr(pos+1);
         float strictness = std::stof(strictness_str, nullptr);
-        return new MaximumInformationTrimmer(parLength, strictness, phred, rp.threads);
+        return new MaximumInformationTrimmer(parLength, strictness, phred, rp.workerThreadNum);
     }
     if(trimmerName.compare("MINLEN") == 0) {
         int minLen = std::stoi(trimmerArgs, nullptr) ;

@@ -2,12 +2,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "pigz.h"
+#include "ThreadAssign.h"
 
 using namespace rabbit::trim;
 
 int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &logger) {
+  // assign thread for worker and pigz
+  rabbit::trim::util::threadAssignForSE(logger, rp);
+  
   // the number of consumer 
-  int consumer_num = rp.threads;
+  int consumer_num = rp.workerThreadNum;
 
   rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(256,MEM_PER_CHUNK);
   rabbit::trim::FastqDataChunkQueue queue1(256,1);

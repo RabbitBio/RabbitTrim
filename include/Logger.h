@@ -58,6 +58,18 @@ namespace rabbit{
                     std::cerr << "INFO: " << message;
                 }
             }
+
+            void debugln(std::string message){
+                if(showInfo){
+                    std::cerr << "\033[1;31mDEBUG: " << message << "\033[0m" << std::endl;
+                }
+            }
+
+            void debug(std::string message){
+                if(showError){
+                    std::cerr << "\033[1;31mDEBUG: " << message << "\033[0m";
+                }
+            }
         
     };
 }

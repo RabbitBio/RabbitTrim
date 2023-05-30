@@ -1,10 +1,16 @@
 #include "handler/HandlerPE.h"
 #include "pigz.h"
+#include "ThreadAssign.h"
 
 using namespace rabbit::trim;
 
 int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &logger) {
-  int consumer_num = rp.threads;
+  
+  // assign thread for worker and pigz
+  rabbit::trim::util::threadAssignForPE(logger, rp);
+   
+  // int consumer_num = rp.threads;
+  int consumer_num = rp.workerThreadNum;
   rabbit::fq::FastqDataPool * fastqPool = new rabbit::fq::FastqDataPool(256, MEM_PER_CHUNK);
   rabbit::trim::FastqDataPairChunkQueue queue1(128,1);
   rabbit::trim::FastqDataPairChunkQueue phredQueue(128,1); 

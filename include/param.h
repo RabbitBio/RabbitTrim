@@ -14,6 +14,15 @@ namespace rabbit
         const int MAX_READ_LENGTH = 512;
         const int MAX_ADAPTER_LENGTH = 128;
         const int PREREAD_COUNT = 10000;
+        
+        // preset of speed
+        const double INPUT_READ_SPEED = 2000.0;
+        const double IGZIP_DECOMPRESS_SPEED = 1000.0;
+        const double IGZIP_COMPRESS_SPEED = 490.0;
+        const double RTRIM_PE_SPEED_PER_SEC = 500.0;
+        const double RTRIM_SE_SPEED_PER_SEC = 240.0;
+        const double PIGZ_SPEED_PER_SEC = 60.0;
+        const int MIN_PIGZ_THREAD_NUM = 10;
 
         struct RabbitTrimParam{
             RabbitTrimParam() = default;
@@ -66,6 +75,8 @@ namespace rabbit
             int window;
             double mismatch;
             bool use_default_mismatch;
+
+            int workerThreadNum;
         };
 
     } // namespace trim
