@@ -55,6 +55,7 @@ namespace rabbit{
 		static const uint32 IGZIP_IN_BUF_SIZE = 1 << 22; // 4M gziped file onece fetch
 		static const uint32 GZIP_HEADER_BYTES_REQ = 1<<16;
 	public:
+    typedef rabbit::core::TDataQueue<std::pair<char*, int> > PragzipQueue;
 		FileReader(const std::string &fileName_, bool isZipped){
 			if(ends_with(fileName_, ".gz") || isZipped) {
 #if defined(USE_IGZIP)
@@ -218,7 +219,87 @@ namespace rabbit{
 				return n;
 			}
 		}
-		/// True means no need to call Read() function
+    
+    // Add for pragzip
+        int64 Read(byte *buf, uint64 len, PragzipQueue& pragzipQueue, std::pair<char *, int> &L,int tag) {
+          static int64 chunk_id;
+          static int now_L_size[2];
+          now_L_size[0] = 1 << 20;
+          now_L_size[1] = 1 << 20;
+          std::pair<char *, int>* now;
+          int64 ret;
+          int64 got = 0;
+          //printf("now producer get data from pugz queue\n");
+          if (L.second > 0) {
+            if (L.second >= len) {
+              memcpy(buf, L.first, len);
+              char *tmp = new char[L.second - len];
+              memcpy(tmp, L.first + len, L.second - len);
+              memcpy(L.first, tmp, L.second - len);
+              delete[] tmp;
+              L.second = L.second - len;
+              ret = len;
+              buf += ret;
+              len -= ret;
+              got += ret;
+              return got;
+            } else {
+              memcpy(buf, L.first, L.second);
+              ret = L.second;
+              L.second = 0;
+              buf += ret;
+              len -= ret;
+              got += ret;
+            }
+          }
+          // bool overWhile = false;
+          while (len > 0) {
+            // while (Q->try_dequeue(now) == 0) {
+            //   if (Q->size_approx() == 0 && *done == 1) {
+            //     ret = 0;
+            //     overWhile = true;
+            //     break;
+            //   }
+            //   usleep(1000);
+            //   //printf("producer waiting pugz...\n");
+            // }
+            if(pragzipQueue.Pop(chunk_id, now) == false)
+            {
+              ret = 0;
+              break;
+            }
+            // if (overWhile) {
+            //   ret = 0;
+            //   break;
+            // }
+            if(now->second > now_L_size[tag]) {
+              char* tmp_L = new char[now->second];
+              memcpy(tmp_L, L.first, L.second);
+              delete[] L.first;
+              now_L_size[tag] = now->second;
+              L.first = tmp_L;
+            }
+            if (now->second <= len) {
+              memcpy(buf, now->first, now->second);
+              delete[] now->first;
+              ret = now->second;
+            } else {
+              int move_last = now->second - len;
+              memcpy(buf, now->first, len);
+              memcpy(L.first, now->first + len, move_last);
+              L.second = move_last;
+              delete[] now->first;
+              ret = len;
+            }
+
+            buf += ret;
+            len -= ret;
+            got += ret;
+          }
+
+          return got;
+        }
+        /// True means no need to call Read() function
 		bool FinishRead(){
 			if(isZipped){
 #if defined(USE_IGZIP)			

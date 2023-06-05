@@ -164,77 +164,140 @@ void rabbit::trim::util::countAdapter(rabbit::Logger& logger, rabbit::trim::Rabb
 }
 void rabbit::trim::util::threadAssignForSE(rabbit::Logger& logger, rabbit::trim::RabbitTrimParam& rp)
 {
-  if(!(rabbit::trim::util::endsWith(rp.output, ".gz") && rp.usePigz))
-  {
-    rp.workerThreadNum = rp.threads;
-    rp.pigzThreadsNum = 0;
-
-#ifdef TRIM_DEBUG
-    logger.debugln("======== Thread Assign Result ======== ");
-    logger.debugln("total thread num : " + std::to_string(rp.threads));
-    logger.debugln("worker thread num : " + std::to_string(rp.workerThreadNum));
-    logger.debugln("pigz thread num : " + std::to_string(rp.pigzThreadsNum));
-    logger.debugln("======== Thread Assign Result ======== ");
-#endif
-    return;
-  }
-
   int prefixPairCnt = 0; 
   int forwardCnt = 0;
   int reverseCnt = 0;
   int commonCnt = 0;
   bool palindromeKeepBoth;
   countAdapter(logger, rp, prefixPairCnt, forwardCnt, reverseCnt, commonCnt, palindromeKeepBoth);
-  // logger.infoln("prefixPairCnt = " + std::to_string(prefixPairCnt));
-  // logger.infoln("forwardCnt = " + std::to_string(forwardCnt));
-  // logger.infoln("reverseCnt = " + std::to_string(reverseCnt));
-  // logger.infoln("commonCnt = " + std::to_string(commonCnt));
 
   int tmp_worker_thread_num;
   int tmp_pigz_thread_num;
+  int tmp_pragzip_thread_num;
   int max_thread_num;
   int min_thread_num;
 
-  // SE
   int cnt = forwardCnt + commonCnt;
   if(cnt == 0) cnt = 1;
   double tmp_rtrim_se_speed = rabbit::trim::RTRIM_SE_SPEED_PER_SEC / (cnt);
-  min_thread_num = rabbit::trim::MIN_PIGZ_THREAD_NUM + std::ceil(rabbit::trim::IGZIP_COMPRESS_SPEED / tmp_rtrim_se_speed);
-  if(rp.threads < min_thread_num)
+
+  if((rabbit::trim::util::endsWith(rp.output, ".gz") && rp.usePigz))
   {
-    rp.usePigz = false;
-    rp.pigzThreadsNum = 0;
-    rp.workerThreadNum = rp.threads;
-  }
-  else
-  {
-    double tmp_ = (tmp_rtrim_se_speed + rabbit::trim::PIGZ_SPEED_PER_SEC) / 2;
-    tmp_pigz_thread_num = std::floor(tmp_ - (std::sqrt(std::pow(tmp_, 2) - tmp_rtrim_se_speed * rp.threads)));
-    tmp_worker_thread_num = rp.threads - tmp_pigz_thread_num;
-    max_thread_num = std::ceil(rabbit::trim::INPUT_READ_SPEED / tmp_rtrim_se_speed);
     if(rabbit::trim::util::endsWith(rp.forwardFiles[0], ".gz"))
     {
-      max_thread_num = std::ceil(rabbit::trim::IGZIP_DECOMPRESS_SPEED / tmp_rtrim_se_speed);
-    }
-    if(tmp_worker_thread_num > max_thread_num) 
-    {
-      tmp_worker_thread_num = max_thread_num;
-      tmp_pigz_thread_num = rp.threads - tmp_worker_thread_num;
-    }
+      rp.usePragzip = true;
+      // assign for worker, pigz and pragzip
+      tmp_worker_thread_num = std::ceil(rp.threads / (1.0 + tmp_rtrim_se_speed / rabbit::trim::PIGZ_SPEED_PER_SEC + tmp_rtrim_se_speed / rabbit::trim::PRAGZIP_SPEED_PER_SEC));
+      tmp_pragzip_thread_num = std::ceil(rp.threads / (1.0 + rabbit::trim::PRAGZIP_SPEED_PER_SEC / tmp_rtrim_se_speed + rabbit::trim::PRAGZIP_SPEED_PER_SEC / rabbit::trim::PIGZ_SPEED_PER_SEC));
+      tmp_pigz_thread_num = rp.threads - tmp_worker_thread_num - tmp_pragzip_thread_num;
+      double min_speed = std::min(tmp_worker_thread_num * tmp_rtrim_se_speed, tmp_pragzip_thread_num * rabbit::trim::PRAGZIP_SPEED_PER_SEC );
+      min_speed = std::min(min_speed, tmp_pigz_thread_num * rabbit::trim::PIGZ_SPEED_PER_SEC );
+      if(min_speed < rabbit::trim::IGZIP_DECOMPRESS_SPEED)
+      {
+        // assign for worker and pigzer
+        tmp_pigz_thread_num = std::ceil(rp.threads / (1.0 + rabbit::trim::PIGZ_SPEED_PER_SEC / tmp_rtrim_se_speed ));
+        tmp_worker_thread_num = rp.threads - tmp_pigz_thread_num;
+        max_thread_num = std::ceil(rabbit::trim::IGZIP_DECOMPRESS_SPEED / tmp_rtrim_se_speed);
+        if(tmp_worker_thread_num > max_thread_num) 
+        {
+          tmp_worker_thread_num = max_thread_num;
+          tmp_pigz_thread_num = rp.threads - tmp_worker_thread_num;
+        }
+        if(tmp_pigz_thread_num * rabbit::trim::PIGZ_SPEED_PER_SEC >= rabbit::trim::IGZIP_COMPRESS_SPEED)
+        {
+          rp.usePragzip = false;
+          tmp_pragzip_thread_num = 0;
+        }
+        else
+        {
+          rp.usePragzip = false;
+          rp.useIgzip = false;
+          tmp_pragzip_thread_num = 0;
+          tmp_pigz_thread_num = 0;
+          tmp_worker_thread_num = rp.threads;
+        }
 
-    if(tmp_pigz_thread_num < rabbit::trim::MIN_PIGZ_THREAD_NUM)
+      }
+
+    }
+    else
     {
+      rp.usePragzip = false;
+      tmp_pragzip_thread_num = 0;
+      // assign for worker and pigz
+      min_thread_num = rabbit::trim::MIN_PIGZ_THREAD_NUM + std::ceil(rabbit::trim::IGZIP_COMPRESS_SPEED / tmp_rtrim_se_speed);
+      if(rp.threads < min_thread_num)
+      {
+        rp.usePigz = false;
+        tmp_worker_thread_num = rp.threads;
+        tmp_pigz_thread_num = 0;
+        tmp_pragzip_thread_num = 0;
+      }
+      else
+      {
+        // double tmp_ = (tmp_rtrim_se_speed + rabbit::trim::PIGZ_SPEED_PER_SEC) / 2;
+        // tmp_pigz_thread_num = std::floor(tmp_ - (std::sqrt(std::pow(tmp_, 2) - tmp_rtrim_se_speed * rp.threads)));
+        tmp_pigz_thread_num = std::ceil(rp.threads / (1.0 + rabbit::trim::PIGZ_SPEED_PER_SEC / tmp_rtrim_se_speed ));
+        tmp_worker_thread_num = rp.threads - tmp_pigz_thread_num;
+        max_thread_num = std::ceil(rabbit::trim::INPUT_READ_SPEED / tmp_rtrim_se_speed);
+        if(tmp_worker_thread_num > max_thread_num) 
+        {
+          tmp_worker_thread_num = max_thread_num;
+          tmp_pigz_thread_num = rp.threads - tmp_worker_thread_num;
+        }
+
+        if(tmp_pigz_thread_num < rabbit::trim::MIN_PIGZ_THREAD_NUM)
+        {
+          rp.usePigz = false;
+          tmp_pigz_thread_num = 0;
+          tmp_worker_thread_num = rp.threads;
+        }
+      }
+
+    }
+  }
+  else
+  { // output is not gzip
+    if(rabbit::trim::util::endsWith(rp.forwardFiles[0], ".gz"))
+    {
+      rp.usePragzip = true;
       rp.usePigz = false;
       tmp_pigz_thread_num = 0;
-      tmp_worker_thread_num = rp.threads;
-    }
+      // assign for worker and pragzip
+      tmp_pragzip_thread_num = std::ceil(rp.threads / (1.0 + rabbit::trim::PRAGZIP_SPEED_PER_SEC / tmp_rtrim_se_speed));
+      tmp_worker_thread_num = rp.threads - tmp_pragzip_thread_num;
+      max_thread_num = std::ceil(rabbit::trim::INPUT_READ_SPEED / tmp_rtrim_se_speed);
+      if(tmp_worker_thread_num > max_thread_num) 
+      {
+        tmp_worker_thread_num = max_thread_num;
+        tmp_pragzip_thread_num = rp.threads - tmp_worker_thread_num;
+      }
 
-    rp.workerThreadNum = tmp_worker_thread_num;
-    rp.pigzThreadsNum = tmp_pigz_thread_num;
+      if(tmp_pragzip_thread_num < rabbit::trim::MIN_PRAGZIP_THREAD_NUM)
+      {
+        rp.usePragzip = false;
+        tmp_pragzip_thread_num = 0;
+        tmp_worker_thread_num = rp.threads;
+      }
+
+    }
+    else
+    {
+      rp.usePigz = false;
+      rp.usePragzip = false;
+      tmp_worker_thread_num = rp.threads;
+      tmp_pigz_thread_num = 0;
+      tmp_pragzip_thread_num = 0;
+    }
   }
+
+  rp.workerThreadNum = tmp_worker_thread_num;
+  rp.pigzThreadsNum = tmp_pigz_thread_num;
+  rp.pragzipThreadsNum = tmp_pragzip_thread_num;
 #ifdef TRIM_DEBUG
   logger.debugln("======== Thread Assign Result ======== ");
   logger.debugln("total thread num : " + std::to_string(rp.threads));
+  logger.debugln("pragzip thread num : " + std::to_string(rp.pragzipThreadsNum));
   logger.debugln("worker thread num : " + std::to_string(rp.workerThreadNum));
   logger.debugln("pigz thread num : " + std::to_string(rp.pigzThreadsNum));
   logger.debugln("======== Thread Assign Result ======== ");
@@ -243,20 +306,6 @@ void rabbit::trim::util::threadAssignForSE(rabbit::Logger& logger, rabbit::trim:
 
 void rabbit::trim::util::threadAssignForPE(rabbit::Logger& logger, rabbit::trim::RabbitTrimParam& rp)
 {
-  if(!(rabbit::trim::util::endsWith(rp.output, ".gz") && rp.usePigz))
-  {
-    rp.workerThreadNum = rp.threads;
-    rp.pigzThreadsNum = 0;
-#ifdef TRIM_DEBUG
-    logger.debugln("======== Thread Assign Result ======== ");
-    logger.debugln("total thread num : " + std::to_string(rp.threads));
-    logger.debugln("worker thread num : " + std::to_string(rp.workerThreadNum));
-    logger.debugln("pigz thread num : " + std::to_string(rp.pigzThreadsNum));
-    logger.debugln("======== Thread Assign Result ======== ");
-#endif
-    return;
-  }
-
 
   int prefixPairCnt = 0; 
   int forwardCnt = 0;
@@ -265,13 +314,9 @@ void rabbit::trim::util::threadAssignForPE(rabbit::Logger& logger, rabbit::trim:
   bool palindromeKeepBoth;
   countAdapter(logger, rp, prefixPairCnt, forwardCnt, reverseCnt, commonCnt, palindromeKeepBoth);
 
-  // logger.infoln("prefixPairCnt = " + std::to_string(prefixPairCnt));
-  // logger.infoln("forwardCnt = " + std::to_string(forwardCnt));
-  // logger.infoln("reverseCnt = " + std::to_string(reverseCnt));
-  // logger.infoln("commonCnt = " + std::to_string(commonCnt));
-
   int tmp_worker_thread_num;
   int tmp_pigz_thread_num;
+  int tmp_pragzip_thread_num;
   int max_thread_num;
   int min_thread_num;
 
@@ -308,44 +353,128 @@ void rabbit::trim::util::threadAssignForPE(rabbit::Logger& logger, rabbit::trim:
     }
   }
 
-  min_thread_num = rabbit::trim::MIN_PIGZ_THREAD_NUM + std::ceil(rabbit::trim::IGZIP_COMPRESS_SPEED / tmp_rtrim_pe_speed);
-  if(rp.threads < min_thread_num)
+  if((rabbit::trim::util::endsWith(rp.output, ".gz") && rp.usePigz))
   {
-    rp.usePigz = false;
-    rp.pigzThreadsNum = 0;
-    rp.workerThreadNum = rp.threads;
-  }
-  else
-  {
-    double tmp_ = (tmp_rtrim_pe_speed + rabbit::trim::PIGZ_SPEED_PER_SEC) / 2;
-    tmp_pigz_thread_num = std::floor(tmp_ - (std::sqrt(std::pow(tmp_, 2) - tmp_rtrim_pe_speed * rp.threads)));
-    tmp_worker_thread_num = rp.threads - tmp_pigz_thread_num;
-    max_thread_num = std::ceil(rabbit::trim::INPUT_READ_SPEED / tmp_rtrim_pe_speed);
     if(rabbit::trim::util::endsWith(rp.forwardFiles[0], ".gz"))
     {
-      max_thread_num = std::ceil(rabbit::trim::IGZIP_DECOMPRESS_SPEED / tmp_rtrim_pe_speed);
+      rp.usePragzip = true;
+      // assign for worker, pigz and pragzip
+      tmp_worker_thread_num = std::ceil(rp.threads / (1.0 + tmp_rtrim_pe_speed / rabbit::trim::PIGZ_SPEED_PER_SEC + tmp_rtrim_pe_speed / rabbit::trim::PRAGZIP_SPEED_PER_SEC));
+      tmp_pragzip_thread_num = std::ceil(rp.threads / (1.0 + rabbit::trim::PRAGZIP_SPEED_PER_SEC / tmp_rtrim_pe_speed + rabbit::trim::PRAGZIP_SPEED_PER_SEC / rabbit::trim::PIGZ_SPEED_PER_SEC));
+      tmp_pigz_thread_num = rp.threads - tmp_worker_thread_num - tmp_pragzip_thread_num;
+      double min_speed = std::min(tmp_worker_thread_num * tmp_rtrim_pe_speed, tmp_pragzip_thread_num * rabbit::trim::PRAGZIP_SPEED_PER_SEC );
+      min_speed = std::min(min_speed, tmp_pigz_thread_num * rabbit::trim::PIGZ_SPEED_PER_SEC );
+      if(min_speed < rabbit::trim::IGZIP_DECOMPRESS_SPEED)
+      {
+        // assign for worker and pigzer
+        tmp_pigz_thread_num = std::ceil(rp.threads / (1.0 + rabbit::trim::PIGZ_SPEED_PER_SEC / tmp_rtrim_pe_speed ));
+        tmp_worker_thread_num = rp.threads - tmp_pigz_thread_num;
+        max_thread_num = std::ceil(rabbit::trim::IGZIP_DECOMPRESS_SPEED / tmp_rtrim_pe_speed);
+        if(tmp_worker_thread_num > max_thread_num) 
+        {
+          tmp_worker_thread_num = max_thread_num;
+          tmp_pigz_thread_num = rp.threads - tmp_worker_thread_num;
+        }
+        if(tmp_pigz_thread_num * rabbit::trim::PIGZ_SPEED_PER_SEC >= rabbit::trim::IGZIP_COMPRESS_SPEED)
+        {
+          rp.usePragzip = false;
+          tmp_pragzip_thread_num = 0;
+        }
+        else
+        {
+          rp.usePragzip = false;
+          rp.useIgzip = false;
+          tmp_pragzip_thread_num = 0;
+          tmp_pigz_thread_num = 0;
+          tmp_worker_thread_num = rp.threads;
+        }
+
+      }
+
     }
-    if(tmp_worker_thread_num > max_thread_num) 
+    else
     {
-      tmp_worker_thread_num = max_thread_num;
-      tmp_pigz_thread_num = rp.threads - tmp_worker_thread_num;
-    }
-    if(tmp_pigz_thread_num < rabbit::trim::MIN_PIGZ_THREAD_NUM)
-    {
-      rp.usePigz = false;
-      tmp_pigz_thread_num = 0;
-      tmp_worker_thread_num = rp.threads;
+      // intput is not gzip
+      rp.usePragzip = false;
+      tmp_pragzip_thread_num = 0;
+      // assign for worker and pigz
+      min_thread_num = rabbit::trim::MIN_PIGZ_THREAD_NUM + std::ceil(rabbit::trim::IGZIP_COMPRESS_SPEED / tmp_rtrim_pe_speed);
+      if(rp.threads < min_thread_num)
+      {
+        rp.usePigz = false;
+        tmp_worker_thread_num = rp.threads;
+        tmp_pigz_thread_num = 0;
+        tmp_pragzip_thread_num = 0;
+      }
+      else
+      {
+        // double tmp_ = (tmp_rtrim_pe_speed + rabbit::trim::PIGZ_SPEED_PER_SEC) / 2;
+        // tmp_pigz_thread_num = std::floor(tmp_ - (std::sqrt(std::pow(tmp_, 2) - tmp_rtrim_pe_speed * rp.threads)));
+        tmp_pigz_thread_num = std::ceil(rp.threads / (1.0 + rabbit::trim::PIGZ_SPEED_PER_SEC / tmp_rtrim_pe_speed ));
+        tmp_worker_thread_num = rp.threads - tmp_pigz_thread_num;
+        max_thread_num = std::ceil(rabbit::trim::INPUT_READ_SPEED / tmp_rtrim_pe_speed);
+        if(tmp_worker_thread_num > max_thread_num) 
+        {
+          tmp_worker_thread_num = max_thread_num;
+          tmp_pigz_thread_num = rp.threads - tmp_worker_thread_num;
+        }
+
+        if(tmp_pigz_thread_num < rabbit::trim::MIN_PIGZ_THREAD_NUM)
+        {
+          rp.usePigz = false;
+          tmp_pigz_thread_num = 0;
+          tmp_worker_thread_num = rp.threads;
+        }
+      }
     }
 
-    rp.workerThreadNum = tmp_worker_thread_num;
-    rp.pigzThreadsNum = tmp_pigz_thread_num;
   }
+  else
+  { // output is not gzip
+    if(rabbit::trim::util::endsWith(rp.forwardFiles[0], ".gz"))
+    {
+      rp.usePragzip = true;
+      rp.usePigz = false;
+      tmp_pigz_thread_num = 0;
+      // assign for worker and pragzip
+      tmp_pragzip_thread_num = std::ceil(rp.threads / (1.0 + rabbit::trim::PRAGZIP_SPEED_PER_SEC / tmp_rtrim_pe_speed));
+      tmp_worker_thread_num = rp.threads - tmp_pragzip_thread_num;
+      max_thread_num = std::ceil(rabbit::trim::INPUT_READ_SPEED / tmp_rtrim_pe_speed);
+      if(tmp_worker_thread_num > max_thread_num) 
+      {
+        tmp_worker_thread_num = max_thread_num;
+        tmp_pragzip_thread_num = rp.threads - tmp_worker_thread_num;
+      }
+
+      if(tmp_pragzip_thread_num < rabbit::trim::MIN_PRAGZIP_THREAD_NUM)
+      {
+        rp.usePragzip = false;
+        tmp_pragzip_thread_num = 0;
+        tmp_worker_thread_num = rp.threads;
+      }
+
+    }
+    else
+    {
+      rp.usePigz = false;
+      rp.usePragzip = false;
+      tmp_worker_thread_num = rp.threads;
+      tmp_pigz_thread_num = 0;
+      tmp_pragzip_thread_num = 0;
+    }
+  }
+
+  rp.workerThreadNum = tmp_worker_thread_num;
+  rp.pigzThreadsNum = tmp_pigz_thread_num;
+  rp.pragzipThreadsNum = tmp_pragzip_thread_num;
 #ifdef TRIM_DEBUG
   logger.debugln("======== Thread Assign Result ======== ");
   logger.debugln("total thread num : " + std::to_string(rp.threads));
+  logger.debugln("pragzip thread num : " + std::to_string(rp.pragzipThreadsNum));
   logger.debugln("worker thread num : " + std::to_string(rp.workerThreadNum));
   logger.debugln("pigz thread num : " + std::to_string(rp.pigzThreadsNum));
   logger.debugln("======== Thread Assign Result ======== ");
 #endif
+
 }
 

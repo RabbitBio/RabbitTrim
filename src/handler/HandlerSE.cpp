@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "pigz.h"
 #include "ThreadAssign.h"
+#include "pragzip.h"
 
 using namespace rabbit::trim;
 
@@ -18,6 +19,9 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   rabbit::trim::FastqDataChunkQueue phredQueue(256,1);
   rabbit::trim::WriterBufferDataQueue wbQueue (256, consumer_num);
   rabbit::trim::WriterBufferDataQueue logQueue(256, consumer_num);
+
+  // pragzip related
+  PragzipQueue pragzipQueue(1 << 5, 1);
   
   // output DataPool
   int wbDataPoolSize = 256;
@@ -31,8 +35,14 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   std::atomic_bool isDeterminedPhred(true);
   if(rp.phred == 0) isDeterminedPhred = false;
 
+  // pragzip task
+  std::thread* pragzip_thread;
+  if(rp.usePragzip)
+    pragzip_thread = new std::thread(rabbit::trim::pragzip_se_task, std::ref(rp), std::ref(pragzipQueue));
+  
+  
   // producer
-  std::thread producer(rabbit::trim::producer_se_task, std::ref(rp), std::ref(logger), fastqPool, std::ref(queue1), std::ref(phredQueue), std::ref(isDeterminedPhred));
+  std::thread producer(rabbit::trim::producer_se_task, std::ref(rp), std::ref(logger), fastqPool, std::ref(pragzipQueue), std::ref(queue1), std::ref(phredQueue), std::ref(isDeterminedPhred));
 
   // determine phred
   if(rp.phred == 0)
@@ -185,7 +195,9 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
       trimlog_thread = new std::thread(std::bind(writer_se_task, std::ref(rp), wbDataPool, std::ref(logQueue), rp.trimLog, std::ref(logger)));
     }
   }
-
+  
+  if(rp.usePragzip)
+    pragzip_thread -> join();
 
   producer.join();
   for(int tn = 0; tn < consumer_num; tn++){
@@ -208,7 +220,7 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
 }
 
 // producer
-int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, FastqDataChunkQueue& dq, FastqDataChunkQueue& phredQueue, std::atomic_bool& isDeterminedPhred)
+int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, PragzipQueue& pragzipQueue, FastqDataChunkQueue& dq, FastqDataChunkQueue& phredQueue, std::atomic_bool& isDeterminedPhred)
 {
   int totalFileCount = rp.forwardFiles.size();
   std::vector<std::string> inputFiles = rp.forwardFiles;
@@ -218,33 +230,66 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
     bool file_is_gz = false;
     // unsigned int i = inputFiles[fileCnt].size() - 3;
     // const char * p = inputFiles[fileCnt].c_str();
-    // if( p[i]=='.' && p[i+1]=='g' && p[i+2]=='z' ) {
+    // if( p[i]=='.' && p[i+1]=='g' && p[i+2]=='z' ) 
     if(rabbit::trim::util::endsWith(inputFiles[fileCnt], ".gz")){
       file_is_gz = true;
     }
+    
     if(file_is_gz){
       fqFileReader = new rabbit::fq::FastqFileReader(inputFiles[fileCnt],*fastqPool, true, "");
     }else{
       fqFileReader = new rabbit::fq::FastqFileReader(inputFiles[fileCnt],*fastqPool, false, "");
     }
 
-    while (true){
-      rabbit::fq::FastqChunk *fqChunk = new rabbit::fq::FastqChunk; 
-      fqChunk->chunk = fqFileReader->readNextChunk();
-      if(fqChunk->chunk == NULL) break;
-      
-      if(!isDeterminedPhred)
-      {
-        rabbit::fq::FastqDataChunk* tmp;
-        fastqPool -> Acquire(tmp);
-        tmp -> size = fqChunk -> chunk -> size;
-        std::memcpy(tmp->data.Pointer(), fqChunk -> chunk -> data.Pointer(), tmp -> size + 1);
-        rabbit::int64 tmp_chunk_id = n_chunks;
-        phredQueue.Push(tmp_chunk_id, tmp);
-      }
 
-      dq.Push(n_chunks, fqChunk->chunk);
-      n_chunks++;
+    if(rp.usePragzip)
+    {
+      std::pair<char*, int> last_info;
+      last_info.first = new char[ 1 << 20 ];
+      last_info.second = 0;
+      while(true)
+      {
+        rabbit::fq::FastqChunk *fqChunk = new rabbit::fq::FastqChunk; 
+        fqChunk->chunk = fqFileReader->readNextChunk(pragzipQueue, last_info);
+        if(fqChunk->chunk == NULL) break;
+
+        if(!isDeterminedPhred)
+        {
+          rabbit::fq::FastqDataChunk* tmp;
+          fastqPool -> Acquire(tmp);
+          tmp -> size = fqChunk -> chunk -> size;
+          std::memcpy(tmp->data.Pointer(), fqChunk -> chunk -> data.Pointer(), tmp -> size + 1);
+          rabbit::int64 tmp_chunk_id = n_chunks;
+          phredQueue.Push(tmp_chunk_id, tmp);
+        }
+
+        dq.Push(n_chunks, fqChunk->chunk);
+        n_chunks++;
+        
+      }
+      delete [] last_info.first;
+      
+    }
+    else
+    {
+      while (true){
+        rabbit::fq::FastqChunk *fqChunk = new rabbit::fq::FastqChunk; 
+        fqChunk->chunk = fqFileReader->readNextChunk();
+        if(fqChunk->chunk == NULL) break;
+
+        if(!isDeterminedPhred)
+        {
+          rabbit::fq::FastqDataChunk* tmp;
+          fastqPool -> Acquire(tmp);
+          tmp -> size = fqChunk -> chunk -> size;
+          std::memcpy(tmp->data.Pointer(), fqChunk -> chunk -> data.Pointer(), tmp -> size + 1);
+          rabbit::int64 tmp_chunk_id = n_chunks;
+          phredQueue.Push(tmp_chunk_id, tmp);
+        }
+
+        dq.Push(n_chunks, fqChunk->chunk);
+        n_chunks++;
+      }
     }
     delete fqFileReader;
   }
@@ -555,3 +600,32 @@ void rabbit::trim::pigzer_se_task(rabbit::trim::RabbitTrimParam& rp, WriterBuffe
   delete [] pigzLast.first;
   pigzLast.first = NULL;
 }
+
+// pragzip task
+void rabbit::trim::pragzip_se_task(rabbit::trim::RabbitTrimParam& rp, PragzipQueue& pragzipQueue)
+{
+  int cnt = 6;
+
+  char **infos = new char *[6];
+  infos[0] = "./pragzip";
+  infos[1] = "-c";
+  infos[2] = "-d";
+  infos[3] = "-P";
+  int th_num = rp.pragzipThreadsNum;
+  std::string th_num_s = to_string(th_num);
+  infos[4] = new char[th_num_s.length() + 1];
+  memcpy(infos[4], th_num_s.c_str(), th_num_s.length());
+  infos[4][th_num_s.length()] = '\0';
+  std::string in_file = rp.forwardFiles[0];
+  infos[5] = new char[in_file.length() + 1];
+  memcpy(infos[5], in_file.c_str(), in_file.length());
+  infos[5][in_file.length()] = '\0';
+
+  main_pragzip(cnt, infos, pragzipQueue);
+  
+  pragzipQueue.SetCompleted();
+
+}
+
+
+

@@ -295,6 +295,7 @@ namespace rabbit {
                 static const uint32 GetNxtBuffSize = 1 << 20;
 
             public:
+                typedef rabbit::core::TDataQueue<std::pair<char*, int> > PragzipQueue;
                 /**
                  * @brief FastaFileReader Constructor
                  * @param fileName_ Fastq file name
@@ -358,9 +359,12 @@ namespace rabbit {
 
                 // added from fastxIO.h
                 FastqDataChunk *readNextChunk();
+                FastqDataChunk *readNextChunk(PragzipQueue& pragzipQueue, std::pair<char*, int>& l); // add for pragzip
                 void readChunk();
                 bool ReadNextChunk_(FastqDataChunk *chunk_);
+                bool ReadNextChunk_(FastqDataChunk *chunk_, PragzipQueue& pragzipQueue, std::pair<char*, int>& l); // add for pragzip
                 FastqDataPairChunk *readNextPairChunk(); // two thread read paired file
+                FastqDataPairChunk * readNextPairChunk(PragzipQueue& pragzipQueue1, PragzipQueue& pragzipQueue2, std::pair<char *, int> &last1, std::pair<char *, int> &last2);
                 FastqDataPairChunk *readNextPairChunk1(); // one thread read paried file
                 bool ReadNextPairedChunk_(FastqDataChunk *chunk_);
                 void Close() {

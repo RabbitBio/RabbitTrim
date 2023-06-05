@@ -17,12 +17,14 @@ namespace rabbit
         
         // preset of speed
         const double INPUT_READ_SPEED = 2000.0;
-        const double IGZIP_DECOMPRESS_SPEED = 1000.0;
+        const double IGZIP_DECOMPRESS_SPEED = 800.0;
         const double IGZIP_COMPRESS_SPEED = 490.0;
         const double RTRIM_PE_SPEED_PER_SEC = 500.0;
-        const double RTRIM_SE_SPEED_PER_SEC = 240.0;
-        const double PIGZ_SPEED_PER_SEC = 60.0;
+        const double RTRIM_SE_SPEED_PER_SEC = 260.0;
+        const double PIGZ_SPEED_PER_SEC = 50.0;
+        const double PRAGZIP_SPEED_PER_SEC = 180.0;
         const int MIN_PIGZ_THREAD_NUM = 10;
+        const int MIN_PRAGZIP_THREAD_NUM = 4;
 
         struct RabbitTrimParam{
             RabbitTrimParam() = default;
@@ -63,8 +65,10 @@ namespace rabbit
             int phred;
             bool validatePairing;
             bool useIgzip;
+            bool usePragzip;
             bool usePigz;
             int pigzThreadsNum;
+            int pragzipThreadsNum;
             int compressLevel;
             
             std::string seqA;

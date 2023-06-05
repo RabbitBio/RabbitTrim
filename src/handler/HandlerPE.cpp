@@ -23,6 +23,10 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   rabbit::trim::WriterBufferDataQueue wbQueue4(256, consumer_num);
   rabbit::trim::WriterBufferDataQueue logQueue(256, consumer_num);
 
+  // pragzip related DataQueue
+  PragzipQueue pragzipQueue1(1 << 5, 1);
+  PragzipQueue pragzipQueue2(1 << 5, 1);
+
   std::vector<rabbit::log::TrimStat> statsArr(consumer_num);
   // PairingValidator
   rabbit::PairingValidator* pairingValidator;
@@ -58,8 +62,18 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
 
   std::atomic_bool isDeterminedPhred(true);
   if(rp.phred == 0) isDeterminedPhred = false;
+
+  // pragzip task  
+  std::thread* pragzip_thread1;
+  std::thread* pragzip_thread2;
+  if(rp.usePragzip)
+  {
+    pragzip_thread1 = new std::thread(rabbit::trim::pragzip_pe_task, std::ref(rp), std::ref(pragzipQueue1), rp.forwardFiles[0]);
+    pragzip_thread2 = new std::thread(rabbit::trim::pragzip_pe_task, std::ref(rp), std::ref(pragzipQueue2), rp.reverseFiles[0]);
+    
+  }
   // producer
-  std::thread producer(rabbit::trim::producer_pe_task, std::ref(rp), std::ref(logger), fastqPool, std::ref(queue1), std::ref(phredQueue), std::ref(isDeterminedPhred));
+  std::thread producer(rabbit::trim::producer_pe_task, std::ref(rp), std::ref(logger), fastqPool, std::ref(pragzipQueue1), std::ref(pragzipQueue2), std::ref(queue1), std::ref(phredQueue), std::ref(isDeterminedPhred));
 
   // determine the phred
   if(rp.phred == 0)
@@ -337,6 +351,11 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   }
 
   // release thread resource
+  if(rp.usePragzip)
+  {
+    pragzip_thread1->join();
+    pragzip_thread2->join();
+  }
   producer.join();
   for(int tn = 0; tn < consumer_num; tn++){
     consumer_threads[tn]->join();
@@ -385,7 +404,7 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
 }
 
 // producer
-int rabbit::trim::producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, FastqDataPairChunkQueue& dq, FastqDataPairChunkQueue& phredQueue, std::atomic_bool& isDeterminedPhred){
+int rabbit::trim::producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, PragzipQueue& pragzipQueue1, PragzipQueue& pragzipQueue2, FastqDataPairChunkQueue& dq, FastqDataPairChunkQueue& phredQueue, std::atomic_bool& isDeterminedPhred){
   if(rp.forwardFiles.size() != rp.reverseFiles.size()) {
     logger.errorln("Read1 and Read2 do not contain equal sized files!");
     exit(0);
@@ -417,27 +436,67 @@ int rabbit::trim::producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
       }
     }
 
-    while (true){
-      rabbit::fq::FastqPairChunk *fqPairChunk = new rabbit::fq::FastqPairChunk; 
-      fqPairChunk->chunk = fqFileReader->readNextPairChunk();
-      if(fqPairChunk->chunk == NULL) break;
-      
-      if(!isDeterminedPhred)
+    if(rp.usePragzip)
+    {
+      std::pair<char*, int> last_info1;
+      last_info1.first = new char[ 1 << 20 ];
+      last_info1.second = 0;
+      std::pair<char*, int> last_info2;
+      last_info2.first = new char[ 1 << 20 ];
+      last_info2.second = 0;
+      while(true)
       {
-        rabbit::fq::FastqDataPairChunk* tmp = new rabbit::fq::FastqDataPairChunk;
-        fastqPool -> Acquire(tmp -> left_part);
-        fastqPool -> Acquire(tmp -> right_part);
+        rabbit::fq::FastqPairChunk *fqPairChunk = new rabbit::fq::FastqPairChunk; 
+        fqPairChunk->chunk = fqFileReader->readNextPairChunk(pragzipQueue1, pragzipQueue2, last_info1, last_info2);
+        if(fqPairChunk->chunk == NULL) break;
+
+        if(!isDeterminedPhred)
+        {
+          rabbit::fq::FastqDataPairChunk* tmp = new rabbit::fq::FastqDataPairChunk;
+          fastqPool -> Acquire(tmp -> left_part);
+          fastqPool -> Acquire(tmp -> right_part);
+
+          tmp -> left_part -> size = fqPairChunk -> chunk -> left_part -> size;
+          tmp -> right_part -> size = fqPairChunk -> chunk -> right_part -> size;
+          std::memcpy(tmp ->left_part->data.Pointer(), fqPairChunk->chunk->left_part->data.Pointer(), tmp->left_part->size + 1);
+          std::memcpy(tmp ->right_part->data.Pointer(), fqPairChunk->chunk->right_part->data.Pointer(), tmp->right_part->size + 1);
+          rabbit::int64 tmp_chunk_id = n_chunks;
+          phredQueue.Push(tmp_chunk_id, tmp);
+        }
+
+        dq.Push(n_chunks,fqPairChunk->chunk);
+        n_chunks++;
         
-        tmp -> left_part -> size = fqPairChunk -> chunk -> left_part -> size;
-        tmp -> right_part -> size = fqPairChunk -> chunk -> right_part -> size;
-        std::memcpy(tmp ->left_part->data.Pointer(), fqPairChunk->chunk->left_part->data.Pointer(), tmp->left_part->size + 1);
-        std::memcpy(tmp ->right_part->data.Pointer(), fqPairChunk->chunk->right_part->data.Pointer(), tmp->right_part->size + 1);
-        rabbit::int64 tmp_chunk_id = n_chunks;
-        phredQueue.Push(tmp_chunk_id, tmp);
       }
-      
-      dq.Push(n_chunks,fqPairChunk->chunk);
-      n_chunks++;
+      delete [] last_info1.first;
+      delete [] last_info2.first;
+
+    }
+    else
+    {
+      while (true)
+      {
+        rabbit::fq::FastqPairChunk *fqPairChunk = new rabbit::fq::FastqPairChunk; 
+        fqPairChunk->chunk = fqFileReader->readNextPairChunk();
+        if(fqPairChunk->chunk == NULL) break;
+
+        if(!isDeterminedPhred)
+        {
+          rabbit::fq::FastqDataPairChunk* tmp = new rabbit::fq::FastqDataPairChunk;
+          fastqPool -> Acquire(tmp -> left_part);
+          fastqPool -> Acquire(tmp -> right_part);
+
+          tmp -> left_part -> size = fqPairChunk -> chunk -> left_part -> size;
+          tmp -> right_part -> size = fqPairChunk -> chunk -> right_part -> size;
+          std::memcpy(tmp ->left_part->data.Pointer(), fqPairChunk->chunk->left_part->data.Pointer(), tmp->left_part->size + 1);
+          std::memcpy(tmp ->right_part->data.Pointer(), fqPairChunk->chunk->right_part->data.Pointer(), tmp->right_part->size + 1);
+          rabbit::int64 tmp_chunk_id = n_chunks;
+          phredQueue.Push(tmp_chunk_id, tmp);
+        }
+
+        dq.Push(n_chunks,fqPairChunk->chunk);
+        n_chunks++;
+      }
     }
     delete fqFileReader;
   }
@@ -477,12 +536,12 @@ void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
     wbDataPool -> Acquire(wb2);
     wbDataPool -> Acquire(wb3);
     wbDataPool -> Acquire(wb4);
-    
+
     uint32_t pos1 = 0; // d1_p
     uint32_t pos2 = 0; // d2_p
     uint32_t pos3 = 0; // d1_u
     uint32_t pos4 = 0; // d2_u
-    
+
     for(int i = 0; i < loaded; i++)
     {
       auto& rec1 = data[i];
@@ -490,32 +549,32 @@ void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
       if(rec1.lseq == 0 && rec2.lseq == 0) continue;
       if(rec1.lseq && rec2.lseq)
       {
-          rstats.readsSurvivingBoth++;
-          std::memcpy(wb1->data + pos1, (rec1.base + rec1.pname), rec1.lname);
-          pos1 += rec1.lname;
-          wb1->data[pos1++] = '\n';
-          std::memcpy(wb1->data + pos1, (rec1.base + rec1.pseq), rec1.lseq);
-          pos1 += rec1.lseq;
-          wb1->data[pos1++] = '\n';
-          std::memcpy(wb1->data + pos1, (rec1.base + rec1.pstrand), rec1.lstrand);
-          pos1 += rec1.lstrand;
-          wb1->data[pos1++] = '\n';
-          std::memcpy(wb1->data + pos1, (rec1.base + rec1.pqual), rec1.lqual);
-          pos1 += rec1.lqual;
-          wb1->data[pos1++] = '\n';
-          // reverse
-          std::memcpy(wb2->data + pos2, (rec2.base + rec2.pname), rec2.lname);
-          pos2 += rec2.lname;
-          wb2->data[pos2++] = '\n';
-          std::memcpy(wb2->data + pos2, (rec2.base + rec2.pseq), rec2.lseq);
-          pos2 += rec2.lseq;
-          wb2->data[pos2++] = '\n';
-          std::memcpy(wb2->data + pos2, (rec2.base + rec2.pstrand), rec2.lstrand);
-          pos2 += rec2.lstrand;
-          wb2->data[pos2++] = '\n';
-          std::memcpy(wb2->data + pos2, (rec2.base + rec2.pqual), rec2.lqual);
-          pos2 += rec2.lqual;
-          wb2->data[pos2++] = '\n';
+        rstats.readsSurvivingBoth++;
+        std::memcpy(wb1->data + pos1, (rec1.base + rec1.pname), rec1.lname);
+        pos1 += rec1.lname;
+        wb1->data[pos1++] = '\n';
+        std::memcpy(wb1->data + pos1, (rec1.base + rec1.pseq), rec1.lseq);
+        pos1 += rec1.lseq;
+        wb1->data[pos1++] = '\n';
+        std::memcpy(wb1->data + pos1, (rec1.base + rec1.pstrand), rec1.lstrand);
+        pos1 += rec1.lstrand;
+        wb1->data[pos1++] = '\n';
+        std::memcpy(wb1->data + pos1, (rec1.base + rec1.pqual), rec1.lqual);
+        pos1 += rec1.lqual;
+        wb1->data[pos1++] = '\n';
+        // reverse
+        std::memcpy(wb2->data + pos2, (rec2.base + rec2.pname), rec2.lname);
+        pos2 += rec2.lname;
+        wb2->data[pos2++] = '\n';
+        std::memcpy(wb2->data + pos2, (rec2.base + rec2.pseq), rec2.lseq);
+        pos2 += rec2.lseq;
+        wb2->data[pos2++] = '\n';
+        std::memcpy(wb2->data + pos2, (rec2.base + rec2.pstrand), rec2.lstrand);
+        pos2 += rec2.lstrand;
+        wb2->data[pos2++] = '\n';
+        std::memcpy(wb2->data + pos2, (rec2.base + rec2.pqual), rec2.lqual);
+        pos2 += rec2.lqual;
+        wb2->data[pos2++] = '\n';
       }
       else
       {
@@ -557,7 +616,7 @@ void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::f
     wb2->data[pos2] = '\0';
     wb3->data[pos3] = '\0';
     wb4->data[pos4] = '\0';
-    
+
     wb1->size = pos1;
     wb2->size = pos2;
     wb3->size = pos3;
@@ -640,150 +699,150 @@ void rabbit::trim::writer_pe_task(rabbit::trim::RabbitTrimParam& rp, WriterBuffe
   if(rabbit::trim::util::endsWith(out_file, ".gz"))
   {
 #ifdef USE_IGZIP
-      // use igzip to compress
+    // use igzip to compress
 #include "igzip_lib.h"
-      int level_size_[10] = {
+    int level_size_[10] = {
 #ifdef ISAL_DEF_LVL0_DEFAULT
-        ISAL_DEF_LVL0_DEFAULT,
+      ISAL_DEF_LVL0_DEFAULT,
 #else
-        0,
+      0,
 #endif
 #ifdef ISAL_DEF_LVL1_DEFAULT
-        ISAL_DEF_LVL1_DEFAULT,
+      ISAL_DEF_LVL1_DEFAULT,
 #else
-        0,
+      0,
 #endif
 #ifdef ISAL_DEF_LVL2_DEFAULT
-        ISAL_DEF_LVL2_DEFAULT,
+      ISAL_DEF_LVL2_DEFAULT,
 #else
-        0,
+      0,
 #endif
 #ifdef ISAL_DEF_LVL3_DEFAULT
-        ISAL_DEF_LVL3_DEFAULT,
+      ISAL_DEF_LVL3_DEFAULT,
 #else
-        0,
+      0,
 #endif
 #ifdef ISAL_DEF_LVL4_DEFAULT
-        ISAL_DEF_LVL4_DEFAULT,
+      ISAL_DEF_LVL4_DEFAULT,
 #else
-        0,
+      0,
 #endif
 #ifdef ISAL_DEF_LVL5_DEFAULT
-        ISAL_DEF_LVL5_DEFAULT,
+      ISAL_DEF_LVL5_DEFAULT,
 #else
-        0,
+      0,
 #endif
 #ifdef ISAL_DEF_LVL6_DEFAULT
-        ISAL_DEF_LVL6_DEFAULT,
+      ISAL_DEF_LVL6_DEFAULT,
 #else
-        0,
+      0,
 #endif
 #ifdef ISAL_DEF_LVL7_DEFAULT
-        ISAL_DEF_LVL7_DEFAULT,
+      ISAL_DEF_LVL7_DEFAULT,
 #else
-        0,
+      0,
 #endif
 #ifdef ISAL_DEF_LVL8_DEFAULT
-        ISAL_DEF_LVL8_DEFAULT,
+      ISAL_DEF_LVL8_DEFAULT,
 #else
-        0,
+      0,
 #endif
 #ifdef ISAL_DEF_LVL9_DEFAULT
-        ISAL_DEF_LVL9_DEFAULT,
+      ISAL_DEF_LVL9_DEFAULT,
 #else
-        0
+      0
 #endif
-      };
-        FILE* out = fopen(out_file.c_str(), "wb");
-        if(!out)
-        {
-          logger.errorln("Failed to open file ' " + out_file + " '");
-          exit(1);
-        }
-        fflush(0);
-        struct isal_zstream stream;
-        struct isal_gzip_header gz_hdr;
-        isal_gzip_header_init(&gz_hdr);
-        isal_deflate_init(&stream);
-        stream.flush = NO_FLUSH;
-        const int LEVEL = rp.compressLevel > 3 ? 0 : rp.compressLevel;
-        
-        stream.level = LEVEL;
-        stream.level_buf_size = level_size_[LEVEL];
-        stream.level_buf = (uint8_t*)malloc(level_size_[LEVEL]);
-        stream.gzip_flag = IGZIP_GZIP;
-        // isal_write_gzip_header(&stream, &gz_hdr);
+    };
+    FILE* out = fopen(out_file.c_str(), "wb");
+    if(!out)
+    {
+      logger.errorln("Failed to open file ' " + out_file + " '");
+      exit(1);
+    }
+    fflush(0);
+    struct isal_zstream stream;
+    struct isal_gzip_header gz_hdr;
+    isal_gzip_header_init(&gz_hdr);
+    isal_deflate_init(&stream);
+    stream.flush = NO_FLUSH;
+    const int LEVEL = rp.compressLevel > 3 ? 0 : rp.compressLevel;
+
+    stream.level = LEVEL;
+    stream.level_buf_size = level_size_[LEVEL];
+    stream.level_buf = (uint8_t*)malloc(level_size_[LEVEL]);
+    stream.gzip_flag = IGZIP_GZIP;
+    // isal_write_gzip_header(&stream, &gz_hdr);
+    stream.end_of_stream = 0;
+
+    rabbit::int64 chunk_id;
+    WriterBuffer* wb;
+    WriterBuffer* wb2;
+    uint8_t* igzp_output_buf = new uint8_t[MEM_PER_CHUNK];
+
+    wbQueue.Pop(chunk_id, wb);
+    while(true)
+    {
+      if(wbQueue.Pop(chunk_id, wb2))
+      {
         stream.end_of_stream = 0;
 
-        rabbit::int64 chunk_id;
-        WriterBuffer* wb;
-        WriterBuffer* wb2;
-        uint8_t* igzp_output_buf = new uint8_t[MEM_PER_CHUNK];
+        stream.avail_in = wb -> size;
+        stream.next_in = (uint8_t*)(wb->data);
+        stream.avail_out = MEM_PER_CHUNK;
+        stream.next_out = igzp_output_buf;
+        isal_deflate(&stream);
+        fwrite(igzp_output_buf, 1, MEM_PER_CHUNK - stream.avail_out, out);
+        wbDataPool -> Release(wb);
+        wb = wb2;
+      }
+      else{
+        stream.end_of_stream = 1;
+        stream.flush = FULL_FLUSH;
+        stream.avail_in = wb -> size;
+        stream.next_in = (uint8_t*)(wb->data);
+        stream.avail_out = MEM_PER_CHUNK;
+        stream.next_out = igzp_output_buf;
+        isal_deflate(&stream);
+        // isal_deflate_end(&stream);
+        fwrite(igzp_output_buf, 1, MEM_PER_CHUNK - stream.avail_out, out);
+        wbDataPool -> Release(wb);
+        break;
 
-        wbQueue.Pop(chunk_id, wb);
-        while(true)
-        {
-          if(wbQueue.Pop(chunk_id, wb2))
-          {
-            stream.end_of_stream = 0;
-
-            stream.avail_in = wb -> size;
-            stream.next_in = (uint8_t*)(wb->data);
-            stream.avail_out = MEM_PER_CHUNK;
-            stream.next_out = igzp_output_buf;
-            isal_deflate(&stream);
-            fwrite(igzp_output_buf, 1, MEM_PER_CHUNK - stream.avail_out, out);
-            wbDataPool -> Release(wb);
-            wb = wb2;
-          }
-          else{
-            stream.end_of_stream = 1;
-            stream.flush = FULL_FLUSH;
-            stream.avail_in = wb -> size;
-            stream.next_in = (uint8_t*)(wb->data);
-            stream.avail_out = MEM_PER_CHUNK;
-            stream.next_out = igzp_output_buf;
-            isal_deflate(&stream);
-            // isal_deflate_end(&stream);
-            fwrite(igzp_output_buf, 1, MEM_PER_CHUNK - stream.avail_out, out);
-            wbDataPool -> Release(wb);
-            break;
-
-          }
-        }
-        fclose(out);
-        delete [] igzp_output_buf;
+      }
+    }
+    fclose(out);
+    delete [] igzp_output_buf;
 
 
 #else
 #include "zlib.h"
-        // use zlib
-        gzFile gz_out_stream = gzopen(out_file.c_str(), "w");
-        if(gz_out_stream == NULL)
-        {
-          logger.errorln("Failed to open file ' " + out_file + " ' by using gzip");
-          exit(1);
-      }
-      int ret = gzsetparams(gz_out_stream, rp.compressLevel, Z_DEFAULT_STRATEGY);
-      
-      if (ret != Z_OK) {
-        logger.errorln("Failed to set gzip parameters");
+    // use zlib
+    gzFile gz_out_stream = gzopen(out_file.c_str(), "w");
+    if(gz_out_stream == NULL)
+    {
+      logger.errorln("Failed to open file ' " + out_file + " ' by using gzip");
+      exit(1);
+    }
+    int ret = gzsetparams(gz_out_stream, rp.compressLevel, Z_DEFAULT_STRATEGY);
+
+    if (ret != Z_OK) {
+      logger.errorln("Failed to set gzip parameters");
+      gzclose(gz_out_stream);
+      exit(1);
+    }
+    rabbit::int64 chunk_id;
+    WriterBuffer* wb;
+    while(wbQueue.Pop(chunk_id, wb)){
+      ret = gzwrite(gz_out_stream, wb->data, wb->size);
+      if (wb -> size && ret <= 0) {
+        logger.errorln("Failed to write data");
         gzclose(gz_out_stream);
         exit(1);
       }
-      rabbit::int64 chunk_id;
-      WriterBuffer* wb;
-      while(wbQueue.Pop(chunk_id, wb)){
-				ret = gzwrite(gz_out_stream, wb->data, wb->size);
-        if (wb -> size && ret <= 0) {
-        	logger.errorln("Failed to write data");
-          gzclose(gz_out_stream);
-          exit(1);
-        }
-        wbDataPool -> Release(wb);
-      }
-      gzclose(gz_out_stream);
-      
+      wbDataPool -> Release(wb);
+    }
+    gzclose(gz_out_stream);
+
 #endif
 
   }
@@ -801,7 +860,7 @@ void rabbit::trim::writer_pe_task(rabbit::trim::RabbitTrimParam& rp, WriterBuffe
     {
       fout << wb->data;
       wbDataPool -> Release(wb);
-      
+
     }
     fout.close();
   }
@@ -828,12 +887,12 @@ void rabbit::trim::consumer_pe_task2(rabbit::trim::RabbitTrimParam& rp, rabbit::
     // copy data to WriterBuffer which is gotten form WriterBufferDataPool
     WriterBuffer* wb1 = NULL;
     WriterBuffer* wb2 = NULL;
-    
+
     wbDataPool -> Acquire(wb1);
     wbDataPool -> Acquire(wb2);
     uint64_t pos1 = 0; // d1_p
     uint64_t pos2 = 0; // d2_p
-    
+
     for(int i = 0; i < loaded; i++)
     {
       auto& rec1 = data[i];
@@ -896,48 +955,76 @@ void rabbit::trim::consumer_pe_task2(rabbit::trim::RabbitTrimParam& rp, rabbit::
 
 void rabbit::trim::pigzer_pe_task(rabbit::trim::RabbitTrimParam& rp, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue, std::pair<char*, int>& pigzLast, std::string out_file)
   // outfile is the output file name without ".gz"
-  {
-    /*
-       argc 9
-       argv ./pigz
-       argv -p
-       argv 16
-       argv -k
-       argv -4
-       argv -f
-       argv -b
-       argv -4096
-       argv p.fq
-       */
-    int cnt = 9;
+{
+  /*
+     argc 9
+     argv ./pigz
+     argv -p
+     argv 16
+     argv -k
+     argv -4
+     argv -f
+     argv -b
+     argv -4096
+     argv p.fq
+     */
+  int cnt = 9;
 
-    char **infos = new char *[9];
-    infos[0] = "./pigz";
-    infos[1] = "-p";
-    int th_num = rp.pigzThreadsNum;
-    std::string th_num_s = std::to_string(th_num);
+  char **infos = new char *[9];
+  infos[0] = "./pigz";
+  infos[1] = "-p";
+  int th_num = rp.pigzThreadsNum;
+  std::string th_num_s = std::to_string(th_num);
 
-    infos[2] = new char[th_num_s.length() + 1];
-    std::memcpy(infos[2], th_num_s.c_str(), th_num_s.length());
-    infos[2][th_num_s.length()] = '\0';
-    infos[3] = "-k";
+  infos[2] = new char[th_num_s.length() + 1];
+  std::memcpy(infos[2], th_num_s.c_str(), th_num_s.length());
+  infos[2][th_num_s.length()] = '\0';
+  infos[3] = "-k";
 
 
-    std::string tmp_level = std::to_string(rp.compressLevel);
-    tmp_level = "-" + tmp_level;
-    infos[4] = new char[tmp_level.length() + 1];
-    std::memcpy(infos[4], tmp_level.c_str(), tmp_level.length());
-    infos[4][tmp_level.length()] = '\0';
+  std::string tmp_level = std::to_string(rp.compressLevel);
+  tmp_level = "-" + tmp_level;
+  infos[4] = new char[tmp_level.length() + 1];
+  std::memcpy(infos[4], tmp_level.c_str(), tmp_level.length());
+  infos[4][tmp_level.length()] = '\0';
 
-    infos[5] = "-f";
-    infos[6] = "-b";
-    infos[7] = "4096";
+  infos[5] = "-f";
+  infos[6] = "-b";
+  infos[7] = "4096";
 
-    infos[8] = new char[out_file.length() + 1];
-    std::memcpy(infos[8], out_file.c_str(), out_file.length());
-    infos[8][out_file.length()] = '\0';
-    main_pigz(cnt, infos, wbDataPool, wbQueue, pigzLast);
-    delete [] pigzLast.first;
-    pigzLast.first = NULL;
+  infos[8] = new char[out_file.length() + 1];
+  std::memcpy(infos[8], out_file.c_str(), out_file.length());
+  infos[8][out_file.length()] = '\0';
+  main_pigz(cnt, infos, wbDataPool, wbQueue, pigzLast);
+  delete [] pigzLast.first;
+  pigzLast.first = NULL;
 
-  }
+}
+
+// pragzip task
+void rabbit::trim::pragzip_pe_task(rabbit::trim::RabbitTrimParam& rp, PragzipQueue& pragzipQueue, std::string in_file)
+{
+  int cnt = 6;
+
+  char **infos = new char *[6];
+  infos[0] = "./pragzip";
+  infos[1] = "-c";
+  infos[2] = "-d";
+  infos[3] = "-P";
+  int th_num = (rp.pragzipThreadsNum + 1) / 2 ;
+  std::string th_num_s = to_string(th_num);
+  infos[4] = new char[th_num_s.length() + 1];
+  memcpy(infos[4], th_num_s.c_str(), th_num_s.length());
+  infos[4][th_num_s.length()] = '\0';
+  infos[5] = new char[in_file.length() + 1];
+  memcpy(infos[5], in_file.c_str(), in_file.length());
+  infos[5][in_file.length()] = '\0';
+
+  main_pragzip(cnt, infos, pragzipQueue);
+
+  pragzipQueue.SetCompleted();
+
+}
+
+
+
