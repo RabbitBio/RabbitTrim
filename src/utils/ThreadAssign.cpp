@@ -211,7 +211,7 @@ void rabbit::trim::util::threadAssignForSE(rabbit::Logger& logger, rabbit::trim:
         else
         {
           rp.usePragzip = false;
-          rp.useIgzip = false;
+          rp.usePigz = false;
           tmp_pragzip_thread_num = 0;
           tmp_pigz_thread_num = 0;
           tmp_worker_thread_num = rp.threads;
@@ -297,8 +297,10 @@ void rabbit::trim::util::threadAssignForSE(rabbit::Logger& logger, rabbit::trim:
 #ifdef TRIM_DEBUG
   logger.debugln("======== Thread Assign Result ======== ");
   logger.debugln("total thread num : " + std::to_string(rp.threads));
+  logger.debugln("use pragzip: " + std::to_string(rp.usePragzip));
   logger.debugln("pragzip thread num : " + std::to_string(rp.pragzipThreadsNum));
   logger.debugln("worker thread num : " + std::to_string(rp.workerThreadNum));
+  logger.debugln("use pigz: " + std::to_string(rp.usePigz));
   logger.debugln("pigz thread num : " + std::to_string(rp.pigzThreadsNum));
   logger.debugln("======== Thread Assign Result ======== ");
 #endif
@@ -383,7 +385,7 @@ void rabbit::trim::util::threadAssignForPE(rabbit::Logger& logger, rabbit::trim:
         else
         {
           rp.usePragzip = false;
-          rp.useIgzip = false;
+          rp.usePigz = false;
           tmp_pragzip_thread_num = 0;
           tmp_pigz_thread_num = 0;
           tmp_worker_thread_num = rp.threads;
@@ -470,8 +472,10 @@ void rabbit::trim::util::threadAssignForPE(rabbit::Logger& logger, rabbit::trim:
 #ifdef TRIM_DEBUG
   logger.debugln("======== Thread Assign Result ======== ");
   logger.debugln("total thread num : " + std::to_string(rp.threads));
+  logger.debugln("use pragzip: " + std::to_string(rp.usePragzip));
   logger.debugln("pragzip thread num : " + std::to_string(rp.pragzipThreadsNum));
   logger.debugln("worker thread num : " + std::to_string(rp.workerThreadNum));
+  logger.debugln("use pigz: " + std::to_string(rp.usePigz));
   logger.debugln("pigz thread num : " + std::to_string(rp.pigzThreadsNum));
   logger.debugln("======== Thread Assign Result ======== ");
 #endif
