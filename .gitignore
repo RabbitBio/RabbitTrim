@@ -1,5 +1,5 @@
 *filelist*
-build
+build*
 testing_dataset/*.fq
 tmp
 inc

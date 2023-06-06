@@ -266,11 +266,14 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
     }
     else // Trimmomatic
     {
-      pigzers = new std::thread* [4];
+      pigzers = new std::thread* [2];
+      writers = new std::thread* [2];
+      
+      
       std::string read1_p_name = out_file + ".read1_p";
       std::string read2_p_name = out_file + ".read2_p";
-      std::string read1_u_name = out_file + ".read1_u";
-      std::string read2_u_name = out_file + ".read2_u";
+      // std::string read1_u_name = out_file + ".read1_u";
+      // std::string read2_u_name = out_file + ".read2_u";
 
       std::ofstream fout1(read1_p_name.c_str());
       if(fout1.fail()){
@@ -283,37 +286,45 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
         fout1.close();
         exit(1);
       }
-      std::ofstream fout3(read1_u_name.c_str());
-      if(fout3.fail()){
-        logger.errorln("Can not open file " + read1_u_name);
-        fout1.close(); fout2.close();
-        exit(1);
-      }
-      std::ofstream fout4(read2_u_name.c_str());
-      if(fout4.fail()){
-        logger.errorln("Can not open file " + read2_u_name);
-        fout1.close(); fout2.close(); fout3.close();
-        exit(1);
-      }
+      // std::ofstream fout3(read1_u_name.c_str());
+      // if(fout3.fail()){
+      //   logger.errorln("Can not open file " + read1_u_name);
+      //   fout1.close(); fout2.close();
+      //   exit(1);
+      // }
+      // std::ofstream fout4(read2_u_name.c_str());
+      // if(fout4.fail()){
+      //   logger.errorln("Can not open file " + read2_u_name);
+      //   fout1.close(); fout2.close(); fout3.close();
+      //   exit(1);
+      // }
 
       std::pair<char*, int> pigzLast1;
       std::pair<char*, int> pigzLast2;
-      std::pair<char*, int> pigzLast3;
-      std::pair<char*, int> pigzLast4;
+      // std::pair<char*, int> pigzLast3;
+      // std::pair<char*, int> pigzLast4;
       pigzLast1.first = new char [ MEM_PER_CHUNK ];
       pigzLast1.second = 0;
       pigzLast2.first = new char [ MEM_PER_CHUNK ];
       pigzLast2.second = 0;
-      pigzLast3.first = new char [ MEM_PER_CHUNK ];
-      pigzLast3.second = 0;
-      pigzLast4.first = new char [ MEM_PER_CHUNK ];
-      pigzLast4.second = 0;
+      // pigzLast3.first = new char [ MEM_PER_CHUNK ];
+      // pigzLast3.second = 0;
+      // pigzLast4.first = new char [ MEM_PER_CHUNK ];
+      // pigzLast4.second = 0;
 
 
       pigzers[0] = new std::thread(rabbit::trim::pigzer_pe_task, std::ref(rp), wbDataPool, std::ref(wbQueue1), std::ref(pigzLast1), read1_p_name);
       pigzers[1] = new std::thread(rabbit::trim::pigzer_pe_task, std::ref(rp), wbDataPool, std::ref(wbQueue2), std::ref(pigzLast2), read2_p_name);
-      pigzers[2] = new std::thread(rabbit::trim::pigzer_pe_task, std::ref(rp), wbDataPool, std::ref(wbQueue3), std::ref(pigzLast3), read1_u_name);
-      pigzers[3] = new std::thread(rabbit::trim::pigzer_pe_task, std::ref(rp), wbDataPool, std::ref(wbQueue4), std::ref(pigzLast4), read2_u_name);
+      // pigzers[2] = new std::thread(rabbit::trim::pigzer_pe_task, std::ref(rp), wbDataPool, std::ref(wbQueue3), std::ref(pigzLast3), read1_u_name);
+      // pigzers[3] = new std::thread(rabbit::trim::pigzer_pe_task, std::ref(rp), wbDataPool, std::ref(wbQueue4), std::ref(pigzLast4), read2_u_name);
+      
+
+      // use igzip to compress unpair data
+      std::string read1_u_name = out_file + ".read1_u.gz";
+      std::string read2_u_name = out_file + ".read2_u.gz";
+      writers[0] = new std::thread(rabbit::trim::writer_pe_task, std::ref(rp), wbDataPool, std::ref(wbQueue3), read1_u_name, std::ref(logger));
+      writers[1] = new std::thread(rabbit::trim::writer_pe_task, std::ref(rp), wbDataPool, std::ref(wbQueue4), read2_u_name, std::ref(logger));
+
     }
     
   }
@@ -372,8 +383,10 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
     {
       pigzers[0]->join();
       pigzers[1]->join();
-      pigzers[2]->join();
-      pigzers[3]->join();
+      // pigzers[2]->join();
+      // pigzers[3]->join();
+      writers[0]->join();
+      writers[1]->join();
     }
   }
   else
@@ -973,7 +986,7 @@ void rabbit::trim::pigzer_pe_task(rabbit::trim::RabbitTrimParam& rp, WriterBuffe
   char **infos = new char *[9];
   infos[0] = "./pigz";
   infos[1] = "-p";
-  int th_num = rp.pigzThreadsNum;
+  int th_num = (rp.pigzThreadsNum + 1) / 2;
   std::string th_num_s = std::to_string(th_num);
 
   infos[2] = new char[th_num_s.length() + 1];
