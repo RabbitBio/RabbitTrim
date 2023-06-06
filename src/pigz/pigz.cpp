@@ -519,8 +519,8 @@ Produce Zip64 format when needed for --zip (>= 4 GiB)
 #define BUF 32768
 #define CEN 42
 #define EXT (BUF + CEN)     // provide enough room to unget a header
-#define MAX_PIGZTHREAD_T_NUMBER 16      //can new 16 processes at most
-  pthread_key_t gtid;
+// #define MAX_PIGZTHREAD_T_NUMBER 16      //can new 16 processes at most
+  // pthread_key_t gtid;
 
   int small_hash(unsigned int pid) {
     return pid % 91;
@@ -529,8 +529,8 @@ Produce Zip64 format when needed for --zip (>= 4 GiB)
 
 using namespace std;
 
-int small_map[100];
-static int threadCnt=0;
+// int small_map[100];
+// static int threadCnt=0;
 // Globals (modified by main threadPigz only when it's the only threadPigz).
 local struct {
   int volatile ret;       // pigz return code
@@ -775,7 +775,7 @@ local struct log {
   struct log *next;       // next entry
 } *log_head[MAX_PIGZTHREAD_T_NUMBER], **log_tail[MAX_PIGZTHREAD_T_NUMBER];
 #ifndef NOTHREAD
-local lock_pigz *log_lock[MAX_PIGZTHREAD_T_NUMBER];
+local lock_pigz *log_lock[MAX_PIGZTHREAD_T_NUMBER] = {NULL};
 #endif
 
 // Maximum log entry length.
@@ -791,8 +791,7 @@ local void log_init(void) {
     mem_track[small_map[*((int*)(pthread_getspecific(gtid)))]].have = 0;
 #ifndef NOTHREAD
     mem_track[small_map[*((int*)(pthread_getspecific(gtid)))]].lock_pigz_in_mem = new_lock_pigz(0);
-    //yarn_mem(yarn_malloc, yarn_free);
-    yarn_mem(malloc, free);
+    yarn_mem(yarn_malloc, yarn_free);
     log_lock[small_map[*((int*)(pthread_getspecific(gtid)))]] = new_lock_pigz(0);
 #endif
     log_head[small_map[*((int*)(pthread_getspecific(gtid)))]] = NULL;
@@ -1698,7 +1697,7 @@ struct job {
 };
 
 // List of compress jobs (with tail for appending to list).
-local lock_pigz *compress_have[MAX_PIGZTHREAD_T_NUMBER];   // number of compress jobs waiting
+local lock_pigz *compress_have[MAX_PIGZTHREAD_T_NUMBER] = {NULL};   // number of compress jobs waiting
 local struct job *compress_head[MAX_PIGZTHREAD_T_NUMBER], **compress_tail[MAX_PIGZTHREAD_T_NUMBER];
 
 // List of write jobs.
@@ -1706,10 +1705,10 @@ local lock_pigz *write_first[MAX_PIGZTHREAD_T_NUMBER];            // lowest sequ
 local struct job *write_head[MAX_PIGZTHREAD_T_NUMBER];
 
 // Number of compression threads running[small_map[*((int*)(pthread_getspecific(gtid)))]].
-local int cthreads[MAX_PIGZTHREAD_T_NUMBER];
+local int cthreads[MAX_PIGZTHREAD_T_NUMBER] = {0};
 
 // Write threadPigz if running[small_map[*((int*)(pthread_getspecific(gtid)))]].
-local threadPigz *writeth[MAX_PIGZTHREAD_T_NUMBER];
+local threadPigz *writeth[MAX_PIGZTHREAD_T_NUMBER] = {NULL};
 
 // Setup job lists (call from main threadPigz).
 local void setup_jobs(void) {
@@ -1758,10 +1757,11 @@ local void finish_jobs(void) {
 
   // join_pigz all of the compress threads, verify they all came back
   //printf("threadCnt is %d\n",threadCnt);
-  if(threadCnt==1)
+  
+  static int nowFinishCnt = 0;
+  nowFinishCnt++;
     caught = join_all_pigz();
   Trace(("-- joined %d compress threads", caught));
-  if(threadCnt==1)
     assert(caught == cthreads[small_map[*((int*)(pthread_getspecific(gtid)))]]);
   cthreads[small_map[*((int *) (pthread_getspecific(gtid)))]] = 0;
 
@@ -3550,7 +3550,7 @@ local unsigned char out_copy[MAX_PIGZTHREAD_T_NUMBER][OUTSIZE];
 local size_t out_len[MAX_PIGZTHREAD_T_NUMBER];
 
 // outb threads states.
-local lock_pigz *outb_write_more[MAX_PIGZTHREAD_T_NUMBER];
+local lock_pigz *outb_write_more[MAX_PIGZTHREAD_T_NUMBER] = {NULL};
 local lock_pigz *outb_check_more[MAX_PIGZTHREAD_T_NUMBER];
 
 // Output write threadPigz.
@@ -4157,7 +4157,7 @@ local void out_push(void) {
 // Process provided input file, or stdin if path is NULL. process() can call
 // itself for recursive directory processing[small_map[*((int*)(pthread_getspecific(gtid)))]].
 // void process(char *path, moodycamel::ReaderWriterQueue<pair<char *, int>> *Q, atomic_int *wDone, pair<char *, int> &L, atomic_int *qNum) {
-void process(char* path, rabbit::trim::WriterBufferDataPool* wbDataPool, rabbit::trim::WriterBufferDataQueue& dq2, std::pair<char*, int>& L){
+local void process(char* path, rabbit::trim::WriterBufferDataPool* wbDataPool, rabbit::trim::WriterBufferDataQueue& dq2, std::pair<char*, int>& L){
 
   //printf("0000\n");
   volatile int method = -1;       // get_header() return value
@@ -4165,7 +4165,7 @@ void process(char* path, rabbit::trim::WriterBufferDataPool* wbDataPool, rabbit:
   struct stat st;                 // to get file type and mod time
   ball_t err;                     // error information from throw()
   // all compressed suffixes for decoding search, in length order
-  char *sufs[] = {".z", "-z", "_z", ".Z", ".gz", "-gz", ".zz", "-zz",
+  static char *sufs[] = {".z", "-z", "_z", ".Z", ".gz", "-gz", ".zz", "-zz",
     ".zip", ".ZIP", ".tgz", NULL};
   // open input file with name in, descriptor ind -- set name and mtime
   if (path == NULL) {
@@ -4975,8 +4975,10 @@ int main_pigz(int argc, char **argv, rabbit::trim::WriterBufferDataPool* wbDataP
 
 
   pthread_mutex_lock(&mutexPigz);
-  small_map[tid] = threadCnt;
   threadCnt++;
+  int ttid = threadCnt;
+  small_map[ttid] = threadCnt;
+  
   if(threadCnt==1){
     // printf("init...\n");
     for (int i = 0; i < MAX_PIGZTHREAD_T_NUMBER; i++) {
