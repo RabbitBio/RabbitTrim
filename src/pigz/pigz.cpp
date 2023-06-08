@@ -5001,7 +5001,7 @@ int main_pigz(int argc, char **argv, rabbit::trim::WriterBufferDataPool* wbDataP
   }
 
 
-  pthread_setspecific(gtid, &tid);
+  pthread_setspecific(gtid, &ttid);
   //printf("gtid is %d\n", *((int *) (pthread_getspecific(gtid))));
 
 
