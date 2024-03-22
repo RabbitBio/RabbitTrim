@@ -5,8 +5,8 @@ project(RabbitTrim)
 set(CMAKE_INSTALL_PREFIX ..)
 set(EXECUTABLE_OUTPUT_PATH .)
 
-set(CMAKE_C_COMPILER "/home/user_home/public/application/gcc-10.1.0/bin/gcc")
-set(CMAKE_CXX_COMPILER "/home/user_home/public/application/gcc-10.1.0/bin/g++")
+# set(CMAKE_C_COMPILER "/home/user_home/public/application/gcc-10.1.0/bin/gcc")
+# set(CMAKE_CXX_COMPILER "/home/user_home/public/application/gcc-10.1.0/bin/g++")
 message(${CMAKE_CXX_COMPILER})
 
 # set(CMAKE_CXX_STANDARD 17)
