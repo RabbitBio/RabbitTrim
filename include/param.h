@@ -14,6 +14,26 @@ namespace rabbit
         const int MAX_READ_LENGTH = 512;
         const int MAX_ADAPTER_LENGTH = 128;
         const int PREREAD_COUNT = 10000;
+
+        // pragzip coefficients
+        const double PRAGZIP_COEF_0 = 157.8302;
+        const double PRAGZIP_COEF_1 = -3.949971;
+        const double PRAGZIP_COEF_2 = 0.413682;
+        const double PRAGZIP_COEF_3 = -0.0147582;
+
+        const double PRAGZIP_COEF_4 = 248.915;
+        const double PRAGZIP_COEF_5 = -7.99773;
+        const double PRAGZIP_COEF_6 = 0.075041;
+
+        // pigz coefficients
+        const double PIGZ_COEF_0 = 59.2099;
+        const double PIGZ_COEF_1 = -0.5408;
+        const double PIGZ_COEF_2 = 0.0128;
+
+        const double PIGZ_COEF_3 = -18.3622;
+        const double PIGZ_COEF_4 = 7.06845;
+        const double PIGZ_COEF_5 = -0.21403;
+        const double PIGZ_COEF_6 = 0.00184882;
         
         // preset of speed
         const double INPUT_READ_SPEED = 2000.0;

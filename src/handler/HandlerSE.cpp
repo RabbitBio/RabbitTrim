@@ -9,7 +9,7 @@ using namespace rabbit::trim;
 
 int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &logger) {
   // assign thread for worker and pigz
-  rabbit::trim::util::threadAssignForSE(logger, rp);
+  rabbit::trim::util::threadAssign(logger, rp, false);
   
   // the number of consumer 
   int consumer_num = rp.workerThreadNum;

@@ -59,7 +59,7 @@ namespace rabbit{
 		FileReader(const std::string &fileName_, bool isZipped){
 			if(ends_with(fileName_, ".gz") || isZipped) {
 #if defined(USE_IGZIP)
-				printf("using igzip!!\n");
+				// printf("using igzip!!\n");
 				mFile = fopen(fileName_.c_str(), "rb");
 				if (mFile == NULL){
 					throw RioException(
