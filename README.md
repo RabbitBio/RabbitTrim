@@ -6,17 +6,17 @@ RabbitTrim refactors and improves the efficiency of Trimmomatic in processing pl
 RabbitTrim supports all function modules available in Trimmomatic and maintains identical results.  
 
 ## Installation
-`RabbitTrim` is written in `C++` for GNU Linux/Unix platforms.`
+`RabbitTrim` is written in `C++` for GNU Linux/Unix platforms.
 
 ### Dependancy
-* cmake version 3.20 or later
-* gcc version 9.4.0 or later
-* [intel isa-l](https://github.com/intel/isa-l)
-* [zlib](http://zlib.net/)
+* cmake version 3.20 or later [REQUIRED]
+* gcc version 9.4.0 or later [REQUIRED]
+* [zlib](http://zlib.net/) [REQUIRED]
+* [intel isa-l](https://github.com/intel/isa-l) [OPTIONAL]
 
 ### Compile and install 
 ```bash
-git clone git@github.com:RabbitBio/RabbitTrim.git 
+git clone https://github.com/RabbitBio/RabbitTrim.git
 cd RabbitTrim
 mkdir build && cd build
 cmake .. -DIGZIP_PATH=[your installation path for intel isa-l]
@@ -48,27 +48,24 @@ Options:
   --quiet,--no-quiet{false}   specify whether to print program runtime information
   --validatePair,--no-validatePair{false}
                               specify whether to validate pair data
-  --pigz,--no-pigz{false}     specify whether to use pigz
-  -g,--pigzThreadsNum INT:POSITIVE:INT bounded to [2 - 64] Needs: --pigz
                               specify the max thread number of pigz
 ```
 ## Example
 1. Process plain FASTQ data in simple mode (for Single-End data)
 ```bash
-./RabbitTrim trimmomatic --SE -f /data/demo.read1.fastq -o /data/output/out.fastq --stats /data/output/trim_stat -s ILLUMINACLIP:../adapter/TruSeq-DNA-Free-SE.fa:2:30:12:1:true MINLEN:36 -t 1
+./RabbitTrim trimmomatic --SE -f /data/demo.read1.fastq -o /data/output/out.fastq --stats /data/output/trim_stat -s ILLUMINACLIP:../adapter/TruSeq-DNA-Free-SE.fa:2:30:12:1:true MINLEN:36 -p 33 -t 1
 ```
 2. Process plain FASTQ data in palindrome mode (for Paired-End data)
 ```bash
-./RabbitTrim trimmomatic --PE -f /data/demo.read1.fastq -r /data/demo.read2.fastq -o /data/output/out.fastq --stats /data/output/trim_stat -s ILLUMINACLIP:../adapter/TruSeq-DNA-Free-PE.fa:2:30:12:1:true MINLEN:36 -t 1
-```
+./RabbitTrim trimmomatic --PE -f /data/demo.read1.fastq -r /data/demo.read2.fastq -o /data/output/out.fastq --stats /data/output/trim_stat -s ILLUMINACLIP:../adapter/TruSeq-DNA-Free-PE.fa:2:30:12:1:true MINLEN:36 -p 33 -t 1
 ```
 3. Process gzip-compressed data in simple mode (for Single-End data)
 ```bash
-./RabbitTrim trimmomatic --SE -f /data/demo.read1.fastq.gz -o /data/output/out.fastq.gz --stats /data/output/trim_stat -s ILLUMINACLIP:../adapter/TruSeq-DNA-Free-SE.fa:2:30:12:1:true MINLEN:36 -t 1
+./RabbitTrim trimmomatic --SE -f /data/demo.read1.fastq.gz -o /data/output/out.fastq.gz --stats /data/output/trim_stat -s ILLUMINACLIP:../adapter/TruSeq-DNA-Free-SE.fa:2:30:12:1:true MINLEN:36 -p 33 -t 1
 ```
 4. Process gzip-compressed data in palindrome mode (for Paired-End data)
 ```bash
-./RabbitTrim trimmomatic --PE -f /data/demo.read1.fastq.gz -r /data/demo.read2.fastq.gz -o /data/output/out.fastq.gz --stats /data/output/trim_stat -s ILLUMINACLIP:../adapter/TruSeq-DNA-Free-PE.fa:2:30:12:1:true MINLEN:36 -t 1
+./RabbitTrim trimmomatic --PE -f /data/demo.read1.fastq.gz -r /data/demo.read2.fastq.gz -o /data/output/out.fastq.gz --stats /data/output/trim_stat -s ILLUMINACLIP:../adapter/TruSeq-DNA-Free-PE.fa:2:30:12:1:true MINLEN:36 -p 33 -t 1
 ```
 ## Output
 The output of RabbitTrim is identical to Trimmomatic.
