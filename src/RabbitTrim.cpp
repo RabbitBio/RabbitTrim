@@ -59,8 +59,8 @@ int main( int argc, char **argv) {
   auto trimm_flag_q = trimmomatic->add_flag("--quiet,!--no-quiet", quiet, "specify whether to print program runtime information");
   auto trimm_flag_v = trimmomatic->add_flag("--validatePair,!--no-validatePair", validatePairing, "specify whether to validate pair data");
   // auto trimm_flag_igzip = trimmomatic->add_flag("--igzip,!--no-igzip", useIgzip, "specify whether to use igzip");
-  auto trimm_flag_pigz = trimmomatic->add_flag("--pigz,!--no-pigz", usePigz, "specify whether to use pigz");
-  auto trimm_option_pigz_th = trimmomatic->add_option("-g,--pigzThreadsNum", pigzThreadsNum, "specify the max thread number of pigz");
+  // auto trimm_flag_pigz = trimmomatic->add_flag("--pigz,!--no-pigz", usePigz, "specify whether to use pigz");
+  // auto trimm_option_pigz_th = trimmomatic->add_option("-g,--pigzThreadsNum", pigzThreadsNum, "specify the max thread number of pigz");
 
 
   // trimm_option_m->required()->check(CLI::IsMember({"PE", "SE"}));
@@ -104,8 +104,8 @@ int main( int argc, char **argv) {
   // auto kt_option_stat = ktrim->add_option("--stats", stats, "specify the path to the trim statistical data file"); 
   auto kt_option_c = ktrim->add_option("-c,--compressLevel", compressLevel, "specify the compression level for the output file");
   // auto kt_flag_igzip = ktrim->add_flag("--igzip,!--no-igzip", useIgzip, "specify whether to use igzip");
-  auto kt_flag_pigz  = ktrim->add_flag("--pigz, !--no-pigz" , usePigz , "specify whether to use pigz");
-  auto kt_option_pigz_th = ktrim->add_option("-g,--pigzThreadsNum", pigzThreadsNum, "specify the max thread number of pigz");
+  // auto kt_flag_pigz  = ktrim->add_flag("--pigz, !--no-pigz" , usePigz , "specify whether to use pigz"); // reserve for debug
+  // auto kt_option_pigz_th = ktrim->add_option("-g,--pigzThreadsNum", pigzThreadsNum, "specify the max thread number of pigz"); // reserve for debug 
 
   kt_flag_pe->excludes(kt_flag_se)->needs(kt_option_f)->needs(kt_option_r);
   kt_flag_se->excludes(kt_flag_pe)-> excludes(kt_option_r)->needs(kt_option_f);
