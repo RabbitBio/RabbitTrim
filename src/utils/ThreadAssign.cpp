@@ -419,7 +419,7 @@ void rabbit::trim::util::threadAssign(rabbit::Logger& logger, rabbit::trim::Rabb
       double pragzip_speed_4 = rabbit::trim::IGZIP_DECOMPRESS_SPEED;
       double trim_speed_4 = trim_speed_per_thread * (rp.threads > 2 ?  rp.threads - 2 : 1); 
       double min_speed_4 = std::min(std::min(pigz_speed_4, pragzip_speed_4), trim_speed_4);
-      if(min_speed_4 > max_speed)
+      if(min_speed_4 >= max_speed)
       {
         max_speed = min_speed_4;
         rp.usePragzip = false;
@@ -478,6 +478,7 @@ void rabbit::trim::util::threadAssign(rabbit::Logger& logger, rabbit::trim::Rabb
       rp.pragzipThreadsNum = 0;
     }
   }
+  if(rp.usePragzip && rp.pragzipThreadsNum == 1) rp.usePragzip = false;
 
 #ifdef TRIM_DEBUG
   logger.debugln("======== Thread Assign Result ======== ");
