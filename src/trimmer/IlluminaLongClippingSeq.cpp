@@ -7,7 +7,7 @@
 using namespace rabbit::trim;
 
 IlluminaLongClippingSeq::IlluminaLongClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_, int consumerNum_) : logger(logger_){
-    logger.infoln("Using Long Clipping Sequence: '" + seq_ + "'");
+    if(consumerNum_ == 0) logger.infoln("Using Long Clipping Sequence: '" + seq_ + "'");
     phred = phred_;
     seq = seq_;
     seqLen = seq.length();
@@ -15,7 +15,6 @@ IlluminaLongClippingSeq::IlluminaLongClippingSeq(rabbit::Logger& logger_, int ph
     seedMax = seedMaxMiss * 2;
     minSequenceLikelihood = minSequenceLikelihood_;
     minSequenceOverlap = minSequenceOverlap_;
-    consumerNum = consumerNum_;
     
     // packSeqInternal(seq)
     fullPack = new uint64[seqLen - 15]; // seqLen - 16 + 1
@@ -30,8 +29,10 @@ IlluminaLongClippingSeq::IlluminaLongClippingSeq(rabbit::Logger& logger_, int ph
         pack[i / INTERLEAVE] = fullPack[i];
     }
 
-    recPacks = new uint64[(rabbit::trim::MAX_READ_LENGTH + 15) * consumerNum_];
-    likelihoodTotal = new float[(rabbit::trim::MAX_READ_LENGTH) * consumerNum_];
+    curSize = rabbit::trim::MAX_READ_LENGTH;
+    worker_buffer = malloc(sizeof(uint64) * (curSize + 15));
+    recPacks = (uint64*)worker_buffer;
+    likelihood = new float[(seqLen + 15) / 16 * 16];
 #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
     
     seq_str = new char[seqLen + 31];
@@ -62,8 +63,8 @@ IlluminaLongClippingSeq::IlluminaLongClippingSeq(rabbit::Logger& logger_, int ph
 IlluminaLongClippingSeq::~IlluminaLongClippingSeq(){
     delete [] fullPack;
     delete [] pack;
-    delete [] recPacks;
-    delete [] likelihoodTotal;
+    // delete [] recPacks;
+    delete [] likelihood;
 #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && TRIM_USE_VEC
     delete [] seq_str;
     delete [] awards;
@@ -71,6 +72,13 @@ IlluminaLongClippingSeq::~IlluminaLongClippingSeq(){
     delete [] divide_arr;
     delete [] all_N;
 #endif
+}
+void IlluminaLongClippingSeq::reAllocateBuffer(uint64 recLen){
+  while(recLen > curSize)
+    curSize = curSize << 1;
+  free(worker_buffer);
+  worker_buffer = malloc(sizeof(uint64) * (curSize + 15));
+  recPacks = (uint64*)worker_buffer;
 }
 
 int IlluminaLongClippingSeq::readsSeqCompare(Reference& rec){
@@ -139,6 +147,7 @@ int IlluminaLongClippingSeq::readsSeqCompare(neoReference& rec){
 
 int IlluminaLongClippingSeq::readsSeqCompare(neoReference& rec, int threadId){
     // std::set<int> offsetSet;
+    if(rec.lseq > curSize) reAllocateBuffer(rec.lseq);
     uint64* packRec = packSeqExternal(rec, threadId);
     uint64* packClip = pack;
 
@@ -289,7 +298,7 @@ uint64* IlluminaLongClippingSeq::packSeqExternal(neoReference& rec){
 uint64* IlluminaLongClippingSeq::packSeqExternal(neoReference& rec, int threadId){ 
 	int len = rec.lseq;
 	char* rec_seq = (char*)(rec.base + rec.pseq);
-	uint64* out = recPacks + threadId * (rabbit::trim::MAX_READ_LENGTH + 15); 
+	uint64* out = recPacks;
 	uint64 pack = 0ULL;
   
   for(int i = 0; i < len / 4 * 4; i+=4)
@@ -394,7 +403,6 @@ float IlluminaLongClippingSeq::calculateDifferenceQuality(neoReference& rec, int
   // Location to start comparison
   int recPos = recOffset > 0 ? recOffset : 0;
   int clipPos = recOffset < 0 ? -recOffset : 0;
-  float* likelihood = likelihoodTotal + rabbit::trim::MAX_READ_LENGTH * threadId;
 #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
   // 16B extra space required for rear
   char* tmp_rec_qual = rec_qual + recPos;

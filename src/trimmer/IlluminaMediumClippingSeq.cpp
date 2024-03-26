@@ -8,7 +8,7 @@
 using namespace rabbit::trim;
 
 IlluminaMediumClippingSeq::IlluminaMediumClippingSeq(rabbit::Logger& logger_, int phred_, std::string seq_, int seedMaxMiss_, int minSequenceLikelihood_, int minSequenceOverlap_, int consumerNum_) :logger(logger_){
-    logger.infoln("Using Medium Clipping Sequence: '" + seq_ + "'");
+    if(consumerNum_ == 0) logger.infoln("Using Medium Clipping Sequence: '" + seq_ + "'");
     phred = phred_;
     seq = seq_;
     seqLen = seq.length();
@@ -27,8 +27,10 @@ IlluminaMediumClippingSeq::IlluminaMediumClippingSeq(rabbit::Logger& logger_, in
         if(i >= 15) pack[i - 15] = pack_;
     }
 
-    recPacks = new uint64[(rabbit::trim::MAX_READ_LENGTH + 15) * consumerNum_];
-    likelihoodTotal = new float[consumerNum_ * 32];
+    curSize = rabbit::trim::MAX_READ_LENGTH;
+    worker_buffer = malloc(sizeof(uint64) * (curSize + 15));
+    recPacks = (uint64*)worker_buffer;
+    likelihood = new float[32];
 
 #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
     seq_str = new char[seqLen + 31];
@@ -58,8 +60,9 @@ IlluminaMediumClippingSeq::IlluminaMediumClippingSeq(rabbit::Logger& logger_, in
 
 IlluminaMediumClippingSeq::~IlluminaMediumClippingSeq(){
     delete [] pack;
-    delete [] recPacks;
-    delete [] likelihoodTotal;
+    // delete [] recPacks;
+    delete [] likelihood;
+    free(worker_buffer);
     
 #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && TRIM_USE_VEC
     delete [] seq_str;
@@ -68,6 +71,14 @@ IlluminaMediumClippingSeq::~IlluminaMediumClippingSeq(){
     delete [] divide_arr;
     delete [] all_N;
 #endif
+}
+
+void IlluminaMediumClippingSeq::reAllocateBuffer(uint64 recLen){
+  while(recLen > curSize)
+    curSize = curSize << 1;
+  free(worker_buffer);
+  worker_buffer = malloc(sizeof(uint64) * (curSize + 15));
+  recPacks = (uint64*)worker_buffer;
 }
 
 int IlluminaMediumClippingSeq::readsSeqCompare(Reference& rec){
@@ -151,10 +162,11 @@ int IlluminaMediumClippingSeq::readsSeqCompare(neoReference& rec){
 
 int IlluminaMediumClippingSeq::readsSeqCompare(neoReference& rec, int threadId){
     // std::set<int> offsetSet;
+    int packRecLen = rec.lseq;
+    if(packRecLen > curSize) reAllocateBuffer(packRecLen);
     uint64* packRec = packSeqExternal(rec, threadId);
     uint64* packClip = pack; 
 
-    int packRecLen = rec.lseq;
     int packRecMax = packRecLen - minSequenceOverlap;
     int packClipMax = seqLen - 15; // pack.length Note：pack is produced by 'packSeqInternal'
 
@@ -309,7 +321,7 @@ uint64* IlluminaMediumClippingSeq::packSeqExternal(neoReference& rec){
 uint64* IlluminaMediumClippingSeq::packSeqExternal(neoReference& rec, int threadId){ 
     int len = rec.lseq;
     char* rec_seq = (char*) (rec.base + rec.pseq);
-    uint64* out = recPacks + threadId * (rabbit::trim::MAX_READ_LENGTH + 15); 
+    uint64* out = recPacks;
     uint64 pack = 0ULL;
     
     for(int i = 0; i < len / 4 * 4; i+=4)
@@ -451,8 +463,6 @@ float IlluminaMediumClippingSeq::calculateDifferenceQuality(neoReference& rec, i
   // Location to start comparison
   int recPos = recOffset > 0 ? recOffset : 0;
   int clipPos = recOffset < 0 ? -recOffset : 0;
-  float* likelihood = likelihoodTotal + threadId * 32;
-
 
 #if defined __SSE2__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
   // 32B extra space required for rear

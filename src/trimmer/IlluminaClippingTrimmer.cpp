@@ -100,8 +100,9 @@ std::vector<std::string> tokens = rabbit::trim::util::split(fullName, "[\\| ]");
    for(auto iter = forwardSeqMap.begin(); iter != forwardSeqMap.end(); iter++){
         std::set<std::string> uniqueSeq;
         std::string sequence =  iter -> second;
-        if(uniqueSeq.count(sequence))
-            logger.warningln("Skipping duplicate Clipping Sequence: '" + sequence + "'");
+        if(uniqueSeq.count(sequence)) {
+            if(consumerNum_ == 0) logger.warningln("Skipping duplicate Clipping Sequence: '" + sequence + "'");
+        }
         else{
             uniqueSeq.insert(sequence);
             if(sequence.size() < 16){
@@ -123,8 +124,9 @@ std::vector<std::string> tokens = rabbit::trim::util::split(fullName, "[\\| ]");
    for(auto iter = reverseSeqMap.begin(); iter != reverseSeqMap.end(); iter++){
         std::set<std::string> uniqueSeq;
         std::string sequence =  iter -> second;
-        if(uniqueSeq.count(sequence))
-            logger.warningln("Skipping duplicate Clipping Sequence: '" + sequence + "'");
+        if(uniqueSeq.count(sequence)) {
+            if(consumerNum_ == 0) logger.warningln("Skipping duplicate Clipping Sequence: '" + sequence + "'");
+        }
         else{
             uniqueSeq.insert(sequence);
             if(sequence.size() < 16){
@@ -145,8 +147,9 @@ std::vector<std::string> tokens = rabbit::trim::util::split(fullName, "[\\| ]");
    for(auto iter = commonSeqMap.begin(); iter != commonSeqMap.end(); iter++){
         std::set<std::string> uniqueSeq;
         std::string sequence =  iter -> second;
-        if(uniqueSeq.count(sequence))
-            logger.warningln("Skipping duplicate Clipping Sequence: '" + sequence + "'");
+        if(uniqueSeq.count(sequence)) {
+            if(consumerNum_ == 0) logger.warningln("Skipping duplicate Clipping Sequence: '" + sequence + "'");
+        }
         else{
             uniqueSeq.insert(sequence);
             if(sequence.size() < 16){
@@ -164,15 +167,14 @@ std::vector<std::string> tokens = rabbit::trim::util::split(fullName, "[\\| ]");
         }
    }
 
-   logger.infoln("ILLUMINACLIP: Using " + std::to_string(prefixPairs.size()) + " prefix pairs, " + std::to_string(commonSeqs.size()) + " forward/reverse sequences, " + std::to_string(forwardSeqs.size()) +  " forward only sequences, " + std::to_string(reverseSeqs.size()) + " reverse only sequences");
+   if(consumerNum_ == 0) 
+   {
+     logger.infoln("ILLUMINACLIP: Using " + std::to_string(prefixPairs.size()) + " prefix pairs, " + std::to_string(commonSeqs.size()) + " forward/reverse sequences, " + std::to_string(forwardSeqs.size()) +  " forward only sequences, " + std::to_string(reverseSeqs.size()) + " reverse only sequences");
+   }
 
 }
 
 IlluminaClippingTrimmer::~IlluminaClippingTrimmer(){
-  std::cout << "=============" << std::endl;
-  std::cout << "~IlluminaClippingTrimmer()" << std::endl;
-  std::cout << "=============" << std::endl;
-
 }
 // single end
 void IlluminaClippingTrimmer::processOneRecord(Reference& rec){}

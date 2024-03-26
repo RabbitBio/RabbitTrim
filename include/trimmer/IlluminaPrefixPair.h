@@ -57,6 +57,9 @@ namespace rabbit
                     uint64* forwardPacks;
                     uint64* reversePacks;
                     float* likelihoodArr;
+                    uint64 curSize;
+                    void* worker_buffer;
+                    void reAllocateBuffer(uint64 recLen);
 #if defined __SSE2__ && defined __SSSE3__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
 
                     char* all_N;

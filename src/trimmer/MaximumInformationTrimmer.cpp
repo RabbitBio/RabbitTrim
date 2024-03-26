@@ -38,7 +38,7 @@ MaximumInformationTrimmer::MaximumInformationTrimmer(int parLength_, float stric
     lengthScore = normalize(lengthScoreTmp, LONGEST_READ, normRatio);
     qualProb = normalize(qualProbTmp, 1 + MAXQUAL, normRatio);
 
-    qualsTotal = new char[consumerNum_ * rabbit::trim::MAX_READ_LENGTH];
+    quals = new char[rabbit::trim::MAX_READ_LENGTH];
 
     // std::cout << "lengthScore : " << std::endl;
     // for(int i = 0; i < LONGEST_READ; i++)
@@ -71,7 +71,7 @@ MaximumInformationTrimmer::~MaximumInformationTrimmer()
   delete [] qualProbTmp;
   delete [] lengthScore;
   delete [] qualProb;
-  delete [] qualsTotal;
+  delete [] quals;
 #if defined __SSE2__ && defined __SSE4_1__ && defined TRIM_USE_VEC
   delete [] all_N;
   delete [] phred_arr;
@@ -122,7 +122,6 @@ void MaximumInformationTrimmer::processOneRecord(neoReference& rec, int threadId
     char* rec_seq = (char*)(rec.base + rec.pseq);
     char* rec_qual = (char*)(rec.base + rec.pqual);
     // compute quality 
-    char* quals = qualsTotal + threadId * rabbit::trim::MAX_READ_LENGTH;
 
 #if defined __SSE2__ && defined __SSE4_1__ && defined TRIM_USE_VEC
     int nums = (len + 15) / 16;

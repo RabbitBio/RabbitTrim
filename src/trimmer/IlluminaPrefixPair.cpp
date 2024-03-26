@@ -20,10 +20,12 @@ IlluminaPrefixPair::IlluminaPrefixPair(std::string prefix1_, std::string prefix2
   prefix1 = prefix1_.substr(0, minLength) ;
   prefix2 = prefix2_.substr(0, minLength) ;
   prefixLen = minLength;
-  logger.infoln("Using PrefixPair: '" + prefix1 + "' and '" + prefix2 + "'"); // debug
+  if(consumerNum_ == 0) logger.infoln("Using PrefixPair: '" + prefix1 + "' and '" + prefix2 + "'"); // debug
 
-  forwardPacks = new uint64[consumerNum_ * (rabbit::trim::MAX_READ_LENGTH + rabbit::trim::MAX_ADAPTER_LENGTH) ];
-  reversePacks = new uint64[consumerNum_ * (rabbit::trim::MAX_READ_LENGTH + rabbit::trim::MAX_ADAPTER_LENGTH) ];
+  curSize = rabbit::trim::MAX_READ_LENGTH;
+  worker_buffer = malloc(2ull * sizeof(uint64) * (curSize + prefixLen) + sizeof(float) * curSize);
+  forwardPacks = (uint64*)worker_buffer;
+  reversePacks = (uint64*)(worker_buffer + sizeof(uint64) * (curSize + prefixLen));
 
 #if defined __SSE2__ && defined __SSSE3__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
   all_N = new char[16];
@@ -46,25 +48,38 @@ IlluminaPrefixPair::IlluminaPrefixPair(std::string prefix1_, std::string prefix2
     divide_arr[i] = -10.0f;
     awards[i] = LOG10_4;
   }
-  likelihoodTotal = new float[ rabbit::trim::MAX_READ_LENGTH * consumerNum_];
+  likelihoodTotal = (float*)(worker_buffer + 2ull * sizeof(uint64) * (curSize + prefixLen));
   
 #endif
 }
 
 IlluminaPrefixPair::~IlluminaPrefixPair(){
-  delete [] forwardPacks;
-  delete [] reversePacks;
+  // delete [] forwardPacks;
+  // delete [] reversePacks;
+  free(worker_buffer);
 #if defined __SSE2__ && defined __SSSE3__ && defined __AVX__ && defined __AVX2__ && defined TRIM_USE_VEC
   delete [] all_N;
   delete [] phred_arr;
   delete [] index_arr;
   delete [] divide_arr;
   delete [] awards;
-  delete [] likelihoodTotal;
+  // delete [] likelihoodTotal;
   delete [] all_4;
   delete [] all_6;
-  
 #endif
+}
+
+void IlluminaPrefixPair::reAllocateBuffer(uint64 recLen)
+{
+  while(recLen > curSize)
+  {
+    curSize = curSize << 1;
+  }
+  free(worker_buffer);
+  worker_buffer = malloc(2ull * sizeof(uint64) * (curSize + prefixLen) + sizeof(float) * curSize);
+  forwardPacks = (uint64*)worker_buffer;
+  reversePacks = (uint64*)(worker_buffer + sizeof(uint64) * (curSize + prefixLen));
+  likelihoodTotal = (float*)(worker_buffer + 2ull * sizeof(uint64) * (curSize + prefixLen));
 }
 
 uint64 IlluminaPrefixPair::packCh(char ch, bool reverse){
@@ -180,9 +195,9 @@ uint64* IlluminaPrefixPair::packSeqInternalForward(neoReference& rec, int thread
   int seqLen = rec.lseq;
   int len = prefixLen + seqLen;
   char* rec_seq = (char*)(rec.base + rec.pseq);
-  assert(len > 15);
+  // assert(len > 15);
   uint64 pack = 0;
-  uint64* out = forwardPacks + (rabbit::trim::MAX_READ_LENGTH + rabbit::trim::MAX_ADAPTER_LENGTH) * threadId;
+  uint64* out = forwardPacks;
   for(int i = 0; i < prefixLen; i++){
     uint64 tmp = (1 << ((prefix1[i] >> 1) & 7)) & 15;
     pack = (pack << 4) | tmp;
@@ -200,9 +215,9 @@ uint64* IlluminaPrefixPair::packSeqInternalReverse(neoReference& rec, int thread
   int seqLen = rec.lseq;
   int len = prefixLen + seqLen;
   char* rec_seq = (char*)(rec.base + rec.pseq);
-  assert(len > 15);
+  // assert(len > 15);
   uint64 pack = 0;
-  uint64* out = reversePacks + (rabbit::trim::MAX_READ_LENGTH + rabbit::trim::MAX_ADAPTER_LENGTH) * threadId;
+  uint64* out = reversePacks;
   for(int i = 0; i < prefixLen; i++){
     uint64 forwardCoding = ((1 << ((prefix2[i] >> 1) & 7)) & 15); 
     uint64 tmp = ((forwardCoding >> 2) | (forwardCoding << 2)) & 15;
@@ -333,7 +348,6 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
   char* tmp_rec_seq_2 = rec2_seq + tmp_pos_2;
   char* tmp_rec_qual_1 = rec1_qual + tmp_pos_1;
   char* tmp_rec_qual_2 = rec2_qual + tmp_pos_2;
-  float* tmp_likelihood = likelihoodTotal + threadId * rabbit::trim::MAX_READ_LENGTH;
   int nums = (tmp_overlap + 15) / 16;
   
   for(int i = 0; i < nums; i++)
@@ -401,12 +415,12 @@ float IlluminaPrefixPair::calculatePalindromeDifferenceQuality(neoReference& rec
     vscore_1_ps = _mm256_blendv_ps(vscore_1_ps, vscore_0, vlow2_ps);
     vscore_2_ps = _mm256_blendv_ps(vscore_2_ps, vscore_0, vhigh2_ps);
 
-    _mm256_storeu_ps(tmp_likelihood + i * 16,      vscore_1_ps);
-    _mm256_storeu_ps(tmp_likelihood + i * 16 + 8,  vscore_2_ps);
+    _mm256_storeu_ps(likelihoodTotal + i * 16,      vscore_1_ps);
+    _mm256_storeu_ps(likelihoodTotal + i * 16 + 8,  vscore_2_ps);
   }
 
   for(int i = 0; i < maxCmpLen - minCmpLen; i++)
-    totalLikelihood += tmp_likelihood[i]; 
+    totalLikelihood += likelihoodTotal[i]; 
   
   
   offset1 += tmp_overlap;
@@ -608,7 +622,9 @@ int IlluminaPrefixPair::palindromeReadsCompare(neoReference& rec1, neoReference&
 int IlluminaPrefixPair::palindromeReadsCompare(neoReference& rec1, neoReference& rec2, int threadId){
   int rec1Len = rec1.lseq;
   int rec2Len = rec2.lseq;
-  if(rec1Len <= 15 || rec2Len <= 15) return 1 << 30; // why?
+  uint64 maxRecLen = (rec1Len > rec2Len ? rec1Len : rec2Len);
+  if(maxRecLen > curSize) reAllocateBuffer(maxRecLen);
+  if(rec1Len <= 15 || rec2Len <= 15) return 1 << 30;
 
   // prefix + rec.seq 的长度为16的kmer数组 ， 注意：对于reverse read得到的是其反向互补的kmer 
   uint64* pack1 = packSeqInternalForward(rec1, threadId); 

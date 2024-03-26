@@ -39,10 +39,10 @@ namespace rabbit
 
         int process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &logger);
         int producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger& logger, rabbit::fq::FastqDataPool* fastqPool, PragzipQueue& pragzipQueue1, PragzipQueue& pragzipQueue2, FastqDataPairChunkQueue& dq, FastqDataPairChunkQueue& phredQueue, std::atomic_bool& isDeterminedPhred);
-        void consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue1, WriterBufferDataQueue& wbQueue2,  WriterBufferDataQueue& wbQueue3, WriterBufferDataQueue& wbQueue4, WriterBufferDataQueue& logQueue, rabbit::log::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers, int threadId, std::atomic_ullong& atomic_next_id);
+        void consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue1, WriterBufferDataQueue& wbQueue2,  WriterBufferDataQueue& wbQueue3, WriterBufferDataQueue& wbQueue4, WriterBufferDataQueue& logQueue, rabbit::log::TrimStat& rstats, int threadId, std::atomic_ullong& atomic_next_id, rabbit::Logger& logger);
         void writer_pe_task(rabbit::trim::RabbitTrimParam& rp, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue, std::string out_file, rabbit::Logger& logger);
 
-        void consumer_pe_task2(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue1, WriterBufferDataQueue& wbQueue2, rabbit::log::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers, std::atomic_ullong& atomic_next_id);
+        void consumer_pe_task2(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue1, WriterBufferDataQueue& wbQueue2, rabbit::log::TrimStat& rstats, std::atomic_ullong& atomic_next_id, rabbit::Logger& logger);
 
         // pigzer
         void pigzer_pe_task(rabbit::trim::RabbitTrimParam& rp, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue, std::pair<char*, int>& pigzLast, std::string out_file); // out_file is the name without ".gz"

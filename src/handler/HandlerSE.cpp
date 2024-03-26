@@ -132,12 +132,6 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
     }
     
   }
-
-  // trimmers
-  TrimmerFactory *trimmerFactory = new TrimmerFactory(logger);
-  std::vector<Trimmer*> trimmers;
-  trimmerFactory -> makeTrimmers(rp, rp.steps, trimmers);
-  
   
 
   // consumer
@@ -146,7 +140,7 @@ int rabbit::trim::process_se(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   std::thread **consumer_threads = new std::thread* [consumer_num]; 
   for(int tn = 0; tn < consumer_num; tn++){
     // asm ("":::"memory");
-    consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_se_task, std::ref(rp), fastqPool, std::ref(queue1), wbDataPool, std::ref(wbQueue), std::ref(logQueue), std::ref(statsArr[tn]), std::ref(trimmers), tn, std::ref(atomic_next_id)));
+    consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_se_task, std::ref(rp), fastqPool, std::ref(queue1), wbDataPool, std::ref(wbQueue), std::ref(logQueue), std::ref(statsArr[tn]), tn, std::ref(atomic_next_id), std::ref(logger)));
   }
 
   
@@ -299,8 +293,13 @@ int rabbit::trim::producer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
 }
 
   // comusmer task
-void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue, WriterBufferDataQueue& logQueue, rabbit::log::TrimStat& rstats, const std::vector<rabbit::trim::Trimmer*>& trimmers, int threadId, std::atomic_ullong& atomic_next_id)
+void rabbit::trim::consumer_se_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue, WriterBufferDataQueue& logQueue, rabbit::log::TrimStat& rstats, int threadId, std::atomic_ullong& atomic_next_id, rabbit::Logger& logger)
 {
+    // trimmers
+    TrimmerFactory *trimmerFactory = new TrimmerFactory(logger, threadId);
+    std::vector<Trimmer*> trimmers;
+    trimmerFactory -> makeTrimmers(rp, rp.steps, trimmers);
+  
     bool isLog = rp.trimLog.size();
     rabbit::int64 chunk_id;
     rabbit::fq::FastqChunk* fqChunk = new rabbit::fq::FastqChunk;

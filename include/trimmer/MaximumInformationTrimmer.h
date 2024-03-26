@@ -39,7 +39,7 @@ namespace rabbit
                 double calcNormalization(double* arr, int arrLength, int margin);
                 int64* normalize(double* arr, int arrLength, double ratio);
                 
-                char* qualsTotal;
+                char* quals;
 #if defined __SSE2__ && defined __SSE4_1__ && defined TRIM_USE_VEC
                 char* all_N;
                 char* phred_arr;

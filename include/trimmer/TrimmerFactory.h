@@ -31,7 +31,7 @@ namespace rabbit
         class TrimmerFactory{
             public:
                 TrimmerFactory();
-                TrimmerFactory(rabbit::Logger& logger_);
+                TrimmerFactory(rabbit::Logger& logger_, int threadId);
                 ~TrimmerFactory();
                 
                 Trimmer* makeOneTrimmer(std::string step, rabbit::trim::RabbitTrimParam& rp);
@@ -40,6 +40,7 @@ namespace rabbit
                 
             private:
                 rabbit::Logger logger;
+                int threadId;
         };
     } // namespace trim
     

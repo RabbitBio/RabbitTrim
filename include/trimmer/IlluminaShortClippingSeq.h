@@ -49,8 +49,11 @@ namespace rabbit
                     int minSequenceLikelihood;
                     int minSequenceOverlap;
                     int consumerNum;
+                    uint64 curSize;
+                    void* worker_buffer;
                     uint64* recPacks; // storage the rec pack for each thread
-                    float* likelihoodTotal;
+                    float* likelihood;
+                    void reAllocateBuffer(uint64 recLen);
 
 #if defined __SSE2__ && defined __AVX__ && defined __AVX2__
                     char* seq_str; // store adapter and extra 15 'B'

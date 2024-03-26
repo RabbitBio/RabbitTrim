@@ -54,7 +54,7 @@ IlluminaShortClippingSeq::IlluminaShortClippingSeq(rabbit::Logger& logger_, int 
     consumerNum = consumerNum_;
 
     seq = seq_;
-    logger.infoln("Using Short Clipping Sequence: '" + seq + "'");
+    if(consumerNum_ == 0) logger.infoln("Using Short Clipping Sequence: '" + seq + "'");
     seqLen = seq.length();
     // calcSingleMask 
     assert(seqLen < 16);
@@ -75,8 +75,10 @@ IlluminaShortClippingSeq::IlluminaShortClippingSeq(rabbit::Logger& logger_, int 
     }
     
     // for each thread, create one rec pack
-    recPacks = new uint64[(rabbit::trim::MAX_READ_LENGTH + 15) * consumerNum_];
-    likelihoodTotal = new float[16 * consumerNum_];
+    curSize = rabbit::trim::MAX_READ_LENGTH;
+    worker_buffer = malloc(sizeof(uint64) * (curSize + 15));
+    recPacks = (uint64*)worker_buffer;
+    likelihood = new float[16];
 // #if defined __SSE2__ && defined __AVX__ && defined __AVX2__
 //     seq_str = new char[seq.size() + 15];
 //     for(int i = 0; i < seq.size(); i++)
@@ -103,8 +105,9 @@ IlluminaShortClippingSeq::IlluminaShortClippingSeq(rabbit::Logger& logger_, int 
 
 IlluminaShortClippingSeq::~IlluminaShortClippingSeq(){
     delete [] pack;
-    delete [] recPacks;
-    delete [] likelihoodTotal;
+    // delete [] recPacks;
+    delete [] likelihood;
+    free(worker_buffer);
 // #if defined __SSE2__ && defined __AVX__ && defined __AVX2__
 //     delete [] seq_str;
 //     delete [] awards;
@@ -112,6 +115,13 @@ IlluminaShortClippingSeq::~IlluminaShortClippingSeq(){
 //     delete [] all_N;
 //     delete [] divide_arr;
 // #endif
+}
+void IlluminaShortClippingSeq::reAllocateBuffer(uint64 recLen){
+  while(recLen > curSize)
+    curSize = curSize << 1;
+  free(worker_buffer);
+  worker_buffer = malloc(sizeof(uint64) * (curSize + 15));
+  recPacks = (uint64*)worker_buffer;
 }
 
 
@@ -160,8 +170,9 @@ int IlluminaShortClippingSeq::readsSeqCompare(Reference& rec){
 }
 
 int IlluminaShortClippingSeq::readsSeqCompare(neoReference& rec, int threadId){
-    uint64* packRec = packSeqExternal(rec, threadId);
     int packRecLen = rec.lseq; 
+    if(packRecLen > curSize) reAllocateBuffer(packRecLen);
+    uint64* packRec = packSeqExternal(rec, threadId);
     uint64* packClip = pack;
     int packClipLen = seqLen;
 
@@ -452,7 +463,7 @@ uint64* IlluminaShortClippingSeq::packSeqExternal(neoReference& rec){
 uint64* IlluminaShortClippingSeq::packSeqExternal(neoReference& rec, int threadId){ 
   int len = rec.lseq;
   char* rec_seq = (char*)(rec.base +  rec.pseq);
-  uint64* out = recPacks + threadId * (MAX_READ_LENGTH + 15);
+  uint64* out = recPacks; 
   uint64 pack = 0ULL;
 
   for(int i = 0; i < len / 4 * 4; i+=4){
@@ -576,7 +587,6 @@ float IlluminaShortClippingSeq::calculateDifferenceQuality(neoReference& rec, in
   int recPos = recOffset > 0 ? recOffset : 0;
   int clipPos = recOffset < 0 ? -recOffset : 0;
 
-  float* likelihood = likelihoodTotal + threadId * 16;
 // #if defined __SSE2__ && defined __AVX__ && defined __AVX2__
 //   // overlap must be less than 16
 //   char* tmp_rec_qual = rec_qual + recPos;

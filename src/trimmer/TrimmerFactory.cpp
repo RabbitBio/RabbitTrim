@@ -3,7 +3,7 @@
 using namespace rabbit::trim;
 
 TrimmerFactory::TrimmerFactory() = default;
-TrimmerFactory::TrimmerFactory(rabbit::Logger& logger_):logger(logger_){}
+TrimmerFactory::TrimmerFactory(rabbit::Logger& logger_, int threadId):logger(logger_), threadId(threadId){}
 TrimmerFactory::~TrimmerFactory() = default;
                 
 Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, rabbit::trim::RabbitTrimParam& rp){
@@ -44,7 +44,7 @@ Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, rabbit::trim::RabbitTr
             }
         }
         
-        return new IlluminaClippingTrimmer(logger, phred, fastaAdapterFile, seedMaxMiss, minPalindromeLikelihood, minSequenceLikelihood, minPrefix, palindromeKeepBoth, rp.workerThreadNum);
+        return new IlluminaClippingTrimmer(logger, phred, fastaAdapterFile, seedMaxMiss, minPalindromeLikelihood, minSequenceLikelihood, minPrefix, palindromeKeepBoth, threadId);
     }
     if(trimmerName.compare("LEADING") == 0) {
         int qual = std::stoi(trimmerArgs, nullptr);
@@ -91,7 +91,7 @@ Trimmer* TrimmerFactory::makeOneTrimmer(std::string step, rabbit::trim::RabbitTr
         int parLength = std::stoi(trimmerArgs, nullptr);
         std::string strictness_str = trimmerArgs.substr(pos+1);
         float strictness = std::stof(strictness_str, nullptr);
-        return new MaximumInformationTrimmer(parLength, strictness, phred, rp.workerThreadNum);
+        return new MaximumInformationTrimmer(parLength, strictness, phred, threadId); 
     }
     if(trimmerName.compare("MINLEN") == 0) {
         int minLen = std::stoi(trimmerArgs, nullptr) ;

@@ -204,11 +204,6 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
     
   }
 
-
-  // trimmers
-  TrimmerFactory *trimmerFactory = new TrimmerFactory(logger);
-  std::vector<Trimmer*> trimmers;
-  trimmerFactory -> makeTrimmers(rp, rp.steps, trimmers);
   // consumer
   std::atomic_ullong  atomic_next_id;
   std::atomic_init(&atomic_next_id, 0ULL);
@@ -217,14 +212,14 @@ int rabbit::trim::process_pe(rabbit::trim::RabbitTrimParam& rp, rabbit::Logger &
   {
     // Ktrim
     for(int tn = 0; tn < consumer_num; tn++){
-      consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task2, std::ref(rp), fastqPool, std::ref(queue1), wbDataPool, std::ref(wbQueue1), std::ref(wbQueue2), std::ref(statsArr[tn]), std::ref(trimmers), std::ref(atomic_next_id)));
+      consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task2, std::ref(rp), fastqPool, std::ref(queue1), wbDataPool, std::ref(wbQueue1), std::ref(wbQueue2), std::ref(statsArr[tn]), std::ref(atomic_next_id), std::ref(logger)));
     }
   }
   else
   {
     // Trimmomatic
     for(int tn = 0; tn < consumer_num; tn++){
-      consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task, std::ref(rp), fastqPool, std::ref(queue1), wbDataPool, std::ref(wbQueue1), std::ref(wbQueue2), std::ref(wbQueue3), std::ref(wbQueue4), std::ref(logQueue), std::ref(statsArr[tn]), std::ref(trimmers), tn, std::ref(atomic_next_id)));
+      consumer_threads[tn] = new std::thread(std::bind(rabbit::trim::consumer_pe_task, std::ref(rp), fastqPool, std::ref(queue1), wbDataPool, std::ref(wbQueue1), std::ref(wbQueue2), std::ref(wbQueue3), std::ref(wbQueue4), std::ref(logQueue), std::ref(statsArr[tn]), tn, std::ref(atomic_next_id), std::ref(logger)));
     }
   }
 
@@ -521,8 +516,12 @@ int rabbit::trim::producer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::Lo
 
 
 // trimmomatic comusmer task
-void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue1, WriterBufferDataQueue& wbQueue2,  WriterBufferDataQueue& wbQueue3, WriterBufferDataQueue& wbQueue4, WriterBufferDataQueue& logQueue, rabbit::log::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers, int threadId, atomic_ullong& atomic_next_id)
+void rabbit::trim::consumer_pe_task(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue1, WriterBufferDataQueue& wbQueue2,  WriterBufferDataQueue& wbQueue3, WriterBufferDataQueue& wbQueue4, WriterBufferDataQueue& logQueue, rabbit::log::TrimStat& rstats, int threadId, atomic_ullong& atomic_next_id, rabbit::Logger& logger)
 {
+  // trimmers
+  TrimmerFactory *trimmerFactory = new TrimmerFactory(logger, threadId);
+  std::vector<Trimmer*> trimmers;
+  trimmerFactory -> makeTrimmers(rp, rp.steps, trimmers);
   rabbit::int64 chunk_id;
   rabbit::fq::FastqPairChunk* fqPairChunk = new rabbit::fq::FastqPairChunk;
   while(dq.Pop(chunk_id,fqPairChunk->chunk)){
@@ -881,8 +880,12 @@ void rabbit::trim::writer_pe_task(rabbit::trim::RabbitTrimParam& rp, WriterBuffe
 
 
 // Ktrim consumer task
-void rabbit::trim::consumer_pe_task2(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue1, WriterBufferDataQueue& wbQueue2, rabbit::log::TrimStat& rstats, std::vector<rabbit::trim::Trimmer*>& trimmers, std::atomic_ullong& atomic_next_id)
+void rabbit::trim::consumer_pe_task2(rabbit::trim::RabbitTrimParam& rp, rabbit::fq::FastqDataPool *fastqPool, FastqDataPairChunkQueue &dq, WriterBufferDataPool* wbDataPool, WriterBufferDataQueue& wbQueue1, WriterBufferDataQueue& wbQueue2, rabbit::log::TrimStat& rstats, std::atomic_ullong& atomic_next_id, rabbit::Logger& logger)
 {
+  // trimmers
+  TrimmerFactory *trimmerFactory = new TrimmerFactory(logger, 1); // 1 is placeholder
+  std::vector<Trimmer*> trimmers;
+  trimmerFactory -> makeTrimmers(rp, rp.steps, trimmers);
   rabbit::int64 chunk_id;
   rabbit::fq::FastqPairChunk* fqPairChunk = new rabbit::fq::FastqPairChunk;
   while(dq.Pop(chunk_id,fqPairChunk->chunk)){
