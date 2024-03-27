@@ -5,7 +5,6 @@ RabbitTrim is an efficient adapter removal tool based on Trimmomatic, which impl
 RabbitTrim refactors and improves the efficiency of Trimmomatic in processing plain FASTQ data and gzip-compressed data.
 RabbitTrim supports all function modules available in Trimmomatic and maintains identical results.  
 
-
 ## Installation
 `RabbitTrim` is written in `C++` for GNU Linux/Unix platforms.
 
@@ -59,7 +58,6 @@ Options:
 2. Process plain FASTQ data in palindrome mode (for Paired-End data)
 ```bash
 ./RabbitTrim trimmomatic --PE -f /data/demo.read1.fastq -r /data/demo.read2.fastq -o /data/output/out.fastq --stats /data/output/trim_stat -s ILLUMINACLIP:../adapter/TruSeq-DNA-Free-PE.fa:2:30:12:1:true MINLEN:36 -p 33 -t 1
-```
 ```
 3. Process gzip-compressed data in simple mode (for Single-End data)
 ```bash
