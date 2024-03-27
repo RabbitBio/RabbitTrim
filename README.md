@@ -5,6 +5,7 @@ RabbitTrim is an efficient adapter removal tool based on Trimmomatic, which impl
 RabbitTrim refactors and improves the efficiency of Trimmomatic in processing plain FASTQ data and gzip-compressed data.
 RabbitTrim supports all function modules available in Trimmomatic and maintains identical results.  
 
+
 ## Installation
 `RabbitTrim` is written in `C++` for GNU Linux/Unix platforms.
 
