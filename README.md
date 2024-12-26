@@ -1,9 +1,9 @@
 ![RabbitTrim logo](RabbitTrim_logo.png "RabbitTrim logo")
 
-# `RabbitTrim version 1.0.0`
-RabbitTrim is an efficient adapter removal tool based on Trimmomatic, which implemented in C++ and deeply optimized in performance. 
-RabbitTrim refactors and improves the efficiency of Trimmomatic in processing plain FASTQ data and gzip-compressed data.
-RabbitTrim supports all function modules available in Trimmomatic and maintains identical results.  
+# `RabbitTrim version 2.0.0`
+RabbitTrim is an efficient adapter removal tool based on Trimmomatic and Ktrim, which implemented in C++ and deeply optimized in performance. 
+RabbitTrim refactors and improves the efficiency of Trimmomatic and Ktrim in processing plain FASTQ data and gzip-compressed data.
+RabbitTrim supports all function modules available in Trimmomatic and Ktrim and maintains identical results.  
 
 ## Installation
 `RabbitTrim` is written in `C++` for GNU Linux/Unix platforms.
@@ -22,7 +22,7 @@ mkdir build && cd build
 cmake .. -DIGZIP_PATH=[your installation path for intel isa-l]
 make -j
 ```
-## Usage
+## Trimmomatic Usage
 ```bash
 Usage: ./RabbitTrim trimmomatic [OPTIONS]
 
@@ -50,6 +50,12 @@ Options:
                               specify whether to validate pair data
                               specify the max thread number of pigz
 ```
+
+## Ktrim Usage
+```bash
+
+```
+
 ## Example
 1. Process plain FASTQ data in simple mode (for Single-End data)
 ```bash
