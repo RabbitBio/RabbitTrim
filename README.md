@@ -56,7 +56,7 @@ Options:
 
 ```
 
-## Example
+## Trimmomatic Examples
 1. Process plain FASTQ data in simple mode (for Single-End data)
 ```bash
 ./RabbitTrim trimmomatic --SE -f /data/demo.read1.fastq -o /data/output/out.fastq --stats /data/output/trim_stat -s ILLUMINACLIP:../adapter/TruSeq-DNA-Free-SE.fa:2:30:12:1:true MINLEN:36 -p 33 -t 1
@@ -82,4 +82,3 @@ For paired-end data, it typically includes four FASTQ files and one trimming inf
 We highly appreciate all bug reports, comments, and suggestions from our users.  
 Please feel free to raise any concerns or feedback with us without hesitation by `issue`. 
 
-## Cite
