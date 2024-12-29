@@ -40,7 +40,7 @@ int main( int argc, char **argv) {
   bool validatePairing = false;
   int compressLevel = 4;
   // bool useIgzip = false;
-  bool usePigz = false;
+  bool usePigz = true;
   int pigzThreadsNum = 2;
 
 
