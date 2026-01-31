@@ -35,6 +35,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <cstdint>
 
 namespace rabbit {
 
